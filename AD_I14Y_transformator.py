@@ -105,6 +105,8 @@ class AD_csv_to_i14y_json():
                 code = Code()
                 code.set_code(row[2])
                 code.set_DisplayNameEN(row[3]) #this is the DisplayName of the code
+                code.set_validFrom(self.validFrom)  
+
                 if indexDEps is not None:
                     code.set_DisplayNameDE(row[indexDEps])
                 if indexFRps is not None:
@@ -193,6 +195,7 @@ class AD_csv_to_i14y_json():
         for concept_elem in value_set.findall('.//concept'):
                 code = Code()
                 code.set_code(concept_elem.get('code'))
+                code.set_validFrom(self.validFrom) 
                 code.set_DisplayNameDE(concept_elem.get('displayName'))
                 code.set_DisplayNameEN(concept_elem.get('displayName'))
                 code.set_DisplayNameFR(concept_elem.get('displayName'))
@@ -382,7 +385,8 @@ class AD_csv_to_i14y_json():
                     "fr": code.DisplayNameFR,
                     "it": code.DisplayNameIT,
                     "rm": code.DisplayNameRM
-                }
+                },
+                "validFrom": code.get_validFrom() 
             }
             if code.parentCode:
                 json_entry["parentCode"] = code.parentCode
@@ -438,6 +442,7 @@ class Code():
         self.DisplayNameIT = ""
         self.DisplayNameRM = ""
         self.parentCode = None
+        self.validFrom = None
     def set_code(self, code):
         self.Code = code
     def set_DisplayNameEN(self, displayNameEN):
@@ -452,6 +457,8 @@ class Code():
         self.DisplayNameRM = displayNameRM
     def set_parentCode(self, parentCode):
         self.parentCode = parentCode
+    def set_validFrom(self, validFrom):
+        self.validFrom = validFrom
     def get_code(self):
         return self.Code
     def get_DisplayNameEN(self):
@@ -464,6 +471,8 @@ class Code():
         return self.DisplayNameIT
     def get_DisplayNameRM(self):
         return self.DisplayNameRM
+    def get_validFrom(self):
+        return self.validFrom
 
 class CodeSystem():
     def __init__(self):
@@ -704,5 +713,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-#TODO: ValidFrom auf Codeebene ist nicht dynamisch.
