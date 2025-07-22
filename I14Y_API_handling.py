@@ -1,3 +1,6 @@
+# I14Y_API_handling.py
+# This script handles API calls to the i14y service for managing codelists and concepts
+
 import requests
 import logging
 import os
@@ -7,6 +10,7 @@ import sys
 import glob
 import certifi
 import datetime
+from dotenv import load_dotenv
 
 # Setting up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -25,7 +29,6 @@ class i14y_api_calls():
         
         POST_URL = f'https://api.i14y.admin.ch/api/partner/v1/concepts/{concept_id}/codelist-entries/imports/json'
 
-            
         # Check if the file exists before making the request
         if not os.path.isfile(file_path):
             logging.error(f"File not found: {file_path}")

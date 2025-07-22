@@ -8,6 +8,8 @@ __pycache__/
 env/
 venv/
 
+.env
+
 # OS files
 .DS_Store
 Thumbs.db
@@ -31,3 +33,5 @@ htmlcov/
 .tox/
 .nox/
 .pytest_cache/
+*.txt
+AD_VS/Transformed

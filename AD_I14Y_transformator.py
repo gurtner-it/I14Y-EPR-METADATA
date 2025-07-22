@@ -1,3 +1,6 @@
+# AD_I14Y_transformator.py
+# This script transforms CSV and XML files into a specific JSON format for interoperability with i14y.
+
 import json
 import sys
 import csv
@@ -5,8 +8,53 @@ import os
 import re
 import xml.etree.ElementTree as ET
 import enum
+from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
+
+class Config:
+    """Configuration class to handle all environment variables"""
+    
+    # Publisher information
+    PUBLISHER_IDENTIFIER = os.getenv('PUBLISHER_IDENTIFIER', 'CH_eHealth')
+    PUBLISHER_NAME = os.getenv('PUBLISHER_NAME', 'eHealth Suisse')
+    
+    # Default values
+    DEFAULT_VERSION = os.getenv('DEFAULT_VERSION', '2.0.0')
+    DEFAULT_PUBLICATION_LEVEL = os.getenv('DEFAULT_PUBLICATION_LEVEL', 'Internal')
+    DEFAULT_CONCEPT_TYPE = os.getenv('DEFAULT_CONCEPT_TYPE', 'CodeList')
+    DEFAULT_VALUE_TYPE = os.getenv('DEFAULT_VALUE_TYPE', 'String')
+    DEFAULT_VALUE_MAX_LENGTH = int(os.getenv('DEFAULT_VALUE_MAX_LENGTH', '30'))
+    
+    # Period defaults
+    DEFAULT_PERIOD_START = os.getenv('DEFAULT_PERIOD_START', '2024-06-01')
+    DEFAULT_PERIOD_END = os.getenv('DEFAULT_PERIOD_END', '2100-06-01')
+    
+    # Person emails (fallback to original values if not in env)
+    DEFAULT_RESPONSIBLE_EMAIL = os.getenv('DEFAULT_RESPONSIBLE_EMAIL', 'pero.grgic@e-health-suisse.ch')
+    DEFAULT_DEPUTY_EMAIL = os.getenv('DEFAULT_DEPUTY_EMAIL', 'stefanie.neuenschwander@e-health-suisse.ch')
+
+
+class PublisherPersons:
+    """Handles publisher person information"""
+    
+    def __init__(self):
+        self.persons = {
+            "PGR": {
+                "email": Config.DEFAULT_RESPONSIBLE_EMAIL
+            },
+            "SNE": {
+                "email": Config.DEFAULT_DEPUTY_EMAIL
+            }
+        }
+
+    def get_person(self, key):
+        """Returns the person dictionary based on a given key (e.g., 'PGR' or 'SNE')."""
+        return self.persons.get(key, {})
+    
 class AD_csv_to_i14y_json():
+    """Main transformer class that handles CSV and XML to JSON conversion"""
     
     def __init__(self, file_path, output_file_path, file_name, responsible_key, deputy_key, validFrom, new_concept):
         self.file_path = file_path
@@ -15,7 +63,7 @@ class AD_csv_to_i14y_json():
         self.fileExtension = None
         self.concept = concept()
         self.fileName = file_name
-        self.publisher_persons = publisherPersons()
+        self.publisher_persons = PublisherPersons()
         self.responsible_person = self.publisher_persons.get_person(key=responsible_key)
         self.deputy_person = self.publisher_persons.get_person(key=deputy_key)
         self.new_concept = new_concept
@@ -100,9 +148,9 @@ class AD_csv_to_i14y_json():
                     synonymAS.set_text_RM(row[indexRMas])
 
                 periodStart = Period("start")
-                periodStart.set_Date("2024-06-01")
+                periodStart.set_Date(Config.DEFAULT_PERIOD_START)
                 periodEnd = Period("end")
-                periodEnd.set_Date("2100-06-01")
+                periodEnd.set_Date(Config.DEFAULT_PERIOD_END)
 
                 self.codeListEntries.append([code, codeSystem, periodStart, periodEnd, synonymPS, synonymAS])
 
@@ -204,19 +252,19 @@ class AD_csv_to_i14y_json():
                 codeSystem.set_Identifier(code_system_id)
             
                 periodStart = Period("start")
-                periodStart.set_Date("2024-06-01")
+                periodStart.set_Date(Config.DEFAULT_PERIOD_START)
                 periodEnd = Period("end")
-                periodEnd.set_Date("2100-06-01")
-            
+                periodEnd.set_Date(Config.DEFAULT_PERIOD_END)
+
                 self.codeListEntries.append([code, codeSystem, periodStart, periodEnd, synonymPS, synonymAS])
                 self.concept = concept_instance
 
     def create_concept_output(self):
         output = {
             "data": {
-                "codeListEntryValueMaxLength": 30, # Adjust the value as needed
-                "codeListEntryValueType": "String", # Adjust the value as needed
-                "conceptType": "CodeList",
+                "codeListEntryValueMaxLength": Config.DEFAULT_VALUE_MAX_LENGTH, # Adjust the value as needed
+                "codeListEntryValueType": Config.DEFAULT_VALUE_TYPE, # Adjust the value as needed
+                "conceptType": Config.DEFAULT_CONCEPT_TYPE,
                 "conformsTo": [],
                 "description": {
                     "de": self.concept.get_descriptionDE(),
@@ -233,19 +281,19 @@ class AD_csv_to_i14y_json():
                     "it": self.concept.get_name()
                 },
                 "publisher": {
-                    "identifier": "CH_eHealth",
+                    "identifier": Config.PUBLISHER_IDENTIFIER,
                     "name": {
-                        "de": "eHealth Suisse",
-                        "en": "eHealth Suisse",
-                        "fr": "eHealth Suisse",
-                        "it": "eHealth Suisse"
+                        "de": Config.PUBLISHER_NAME,
+                        "en": Config.PUBLISHER_NAME,
+                        "fr": Config.PUBLISHER_NAME,
+                        "it": Config.PUBLISHER_NAME,
                     }
                 },
                 "responsibleDeputy": self.deputy_person,
                 "responsiblePerson": self.responsible_person,
                 "themes": [],
                 "validFrom": self.concept.get_validFrom(),
-                "version": "2.0.0"
+                "version": Config.DEFAULT_VERSION
             }
         }    
         return output
@@ -510,22 +558,22 @@ class Synonym():
 
 class concept():
      def __init__(self):
-        self.codeListEntryValueMaxLength = 14
-        self.codeListEntryValueType = "String"
-        self.conceptType = "CodeList"
-        self.descriptionDE = None #description of the concept in german
+        self.codeListEntryValueMaxLength = Config.DEFAULT_VALUE_MAX_LENGTH
+        self.codeListEntryValueType = Config.DEFAULT_VALUE_TYPE
+        self.conceptType = Config.DEFAULT_CONCEPT_TYPE
+        self.descriptionDE = None
         self.descriptionEN = None
         self.descriptionFR = None
         self.descriptionIT = None
         self.descriptionRM = None
-        self.id = None #ID of concept, which is getting a new version
-        self.identifier = None #human readable identifier of the concept
-        self.name = None #name of the concept is same in all languages
-        self.publicationLevel = "Internal"
-        self.publisher_identifier = "CH_eHealth"
-        self.publisher_name = "eHealth Suisse" #same in all languages
-        self.validFrom = None #date from which the concept is valid. needs to be in "YYYY-MM-DD" format
-        self.version = None #version of the concept. needs to be in "0.0.0" format
+        self.id = None
+        self.identifier = None
+        self.name = None
+        self.publicationLevel = Config.DEFAULT_PUBLICATION_LEVEL
+        self.publisher_identifier = Config.PUBLISHER_IDENTIFIER
+        self.publisher_name = Config.PUBLISHER_NAME
+        self.validFrom = None
+        self.version = Config.DEFAULT_VERSION
     
      def set_descriptionDE(self, descriptionDE):
         self.descriptionDE = descriptionDE
@@ -603,21 +651,6 @@ class codeListsId(enum.Enum):
     EprPurposeOfUse = '08dd632d-b2f7-197a-889f-18e7a917dd67'
     EprAgentRole = '08dd632d-aee2-333d-b1e4-505385fde8ff'
 
-class publisherPersons():
-    def __init__(self):
-        self.persons = {
-            "PGR": {
-                "email": "pero.grgic@e-health-suisse.ch"
-            },
-            "SNE": {
-                "email": "stefanie.neuenschwander@e-health-suisse.ch"
-            }
-        }
-
-    def get_person(self, key):
-        """Returns the person dictionary based on a given key (e.g., 'PGR' or 'SNE')."""
-        return self.persons.get(key, {})
-
 def main():
     if len(sys.argv) < 5:
         print("Usage: python script_name.py <responsible_key> <deputy_key> <input_folder_path> <output_folder_path> <Date_Valid_From> [-n]")
@@ -640,17 +673,23 @@ def main():
         if filename.endswith(('.csv', '.xml')):
             input_file = os.path.join(input_folder, filename)
             
-            # Extract text between "VS " and "("
-            match = re.search(r'VS_(.*?)_\(', filename)
+            # Match both "VS_" and "VS " and handle space or underscore
+            match = re.search(r'VS[ _](.*?)(?:\s*\(|\.)', filename)
             if match:
-                new_filename = match.group(1).strip() + '_transformed.json'
+                concept_name = match.group(1).strip()
+                new_filename = concept_name + '_transformed.json'
             else:
-                new_filename = filename.replace('.csv', '_transformed.json').replace('.xml', '_transformed.json')
+                print(f"⚠️ Could not parse concept name from filename: {filename}")
+                concept_name = filename.replace('.csv', '').replace('.xml', '')
+                new_filename = concept_name + '_transformed.json'
+
                 
             output_file = os.path.join(output_folder, new_filename)
             
-            print(f"Processing {filename}...")
-            file_name = re.search(r'VS_(.*?)_\(', filename).group(1).strip()
+            file_name_match = re.search(r'VS[ _](.*?)(?:\s*\(|\.)', filename)
+            file_name = file_name_match.group(1).strip() if file_name_match else filename.replace('.csv', '').replace('.xml', '')
+            print(f"⏳ Parsing concept name: {file_name}")
+
             transformer = AD_csv_to_i14y_json(input_file, output_file, file_name, responsible_key, deputy_key, date_valid_from, new)
             
             if filename.endswith('.csv'):
