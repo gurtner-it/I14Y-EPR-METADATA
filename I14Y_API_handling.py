@@ -12,22 +12,55 @@ import certifi
 import datetime
 from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
+
+class Config:
+    """Configuration class to handle all environment variables"""
+    CLIENT_ID = os.getenv("CLIENT_ID")
+    CLIENT_SECRET = os.getenv("CLIENT_SECRET")
+    TOKEN_URL = os.getenv("TOKEN_URL", "https://api.i14y.admin.ch/api/partner/v1/oauth/token")
+
+    BASE_API_URL = os.getenv("BASE_API_URL", "https://api.i14y.admin.ch/api/partner/v1")
+    CONCEPT_POST_URL = os.getenv("CONCEPT_POST_URL", f"{BASE_API_URL}/concepts")
+
+
 # Setting up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class i14y_api_calls():
 
-    def __init__(self, auth_token, directory_path):
-        self.AUTH_TOKEN = auth_token
+    def __init__(self, directory_path):
+        self.AUTH_TOKEN = self.get_access_token()
+        #print(f"Using auth token: {self.AUTH_TOKEN}")
         self.DIRECTORY_PATH = directory_path
-    
+
+    @staticmethod
+    def get_access_token():        
+        data = {'grant_type': 'client_credentials'}
+        
+        try:
+            response = requests.post(
+                Config.TOKEN_URL,
+                data=data,
+                auth=(Config.CLIENT_ID, Config.CLIENT_SECRET),
+                headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                verify=certifi.where()
+            )
+            response.raise_for_status()
+            token = response.json().get("access_token")
+            return f"Bearer {token}"
+        except Exception as e:
+            logging.error(f"Token request failed: {e}")
+            sys.exit(1)
+
     def post_CodelistEntries(self, file_path, concept_id):
         headers = {
             'Authorization': f'Bearer {self.AUTH_TOKEN}',
             'accept': '*/*'
         }
         
-        POST_URL = f'https://api.i14y.admin.ch/api/partner/v1/concepts/{concept_id}/codelist-entries/imports/json'
+        POST_URL = f"{Config.BASE_API_URL}/concepts/{concept_id}/codelist-entries/imports/json"
 
         # Check if the file exists before making the request
         if not os.path.isfile(file_path):
@@ -82,7 +115,8 @@ class i14y_api_calls():
             'accept': '*/*',
             'Authorization': f'Bearer {self.AUTH_TOKEN}'
         }
-        DELETE_URL = f'https://api.i14y.admin.ch/api/partner/v1/concepts/{concept_id}/codelist-entries'
+
+        DELETE_URL = f"{Config.BASE_API_URL}/concepts/{concept_id}/codelist-entries"
 
         try:
             logging.info(f"Sending DELETE request to URL: {DELETE_URL}")
@@ -163,8 +197,8 @@ class i14y_api_calls():
             'Authorization': f'Bearer {self.AUTH_TOKEN}',
             'Accept': 'application/json'
         }
-        
-        POST_URL = 'https://api.i14y.admin.ch/api/partner/v1/concepts'
+
+        POST_URL = Config.CONCEPT_POST_URL
        
         # Check if the file exists before making the request
         if not os.path.isfile(file_path):
@@ -202,7 +236,9 @@ class i14y_api_calls():
     def post_MultipleConcepts(self, directory_path):
         # Find all JSON files in the directory
         json_files = glob.glob(os.path.join(directory_path, "*.json"))
+
         print(f"Found {len(json_files)} files to process")
+
         for json_file in json_files:
             print(f"Posting file: {json_file}")
             self.post_NewConcept(json_file)
@@ -233,8 +269,8 @@ class codeListsId(enum.Enum):
 def main():
     logging.basicConfig(level=logging.INFO)
 
-    if len(sys.argv) < 3:
-        print("Usage: python I14Y_API_handling.py <I14Y_user_token> <method> [file_path] [concept_id]")
+    if len(sys.argv) < 2:
+        print("Usage: python I14Y_API_handling.py <method> [file_path] [concept_id]")
         print("Methods:")
         print("  -pc   → post_NewConcept(file_path)")
         print("  -pmc  → post_MultipleNewConcepts(directory_path)")
@@ -245,39 +281,41 @@ def main():
         sys.exit(1)
 
     # Extract arguments
-    method = sys.argv[2]
-    i14y_user_token = sys.argv[1]  # Last argument is the auth_token
-
+    method = sys.argv[1]
+    #i14y_user_token = sys.argv[1]  # Last argument is the auth_token
+    
 
     # Initialize API handler (Only directory_path is required)
     if method == "-pmc":
-        if len(sys.argv) < 4:
+        if len(sys.argv) < 3:
             logging.error("Missing argument: directory_path for -pmc.")
             sys.exit(1)
-        directory_path = sys.argv[3]
-        api_handler = i14y_api_calls(i14y_user_token, directory_path=directory_path)
+        
+        directory_path = sys.argv[2]
+        api_handler = i14y_api_calls(directory_path=directory_path)
         api_handler.post_MultipleConcepts(directory_path)
 
     elif method == "-pmcl":
-        if len(sys.argv) < 4:
+        if len(sys.argv) < 3:
             logging.error("Missing argument: directory_path for -pmcl.")
             sys.exit(1)
-        directory_path = sys.argv[3]
-        api_handler = i14y_api_calls(i14y_user_token, directory_path=directory_path)
+        directory_path = sys.argv[2]
+       
+        api_handler = i14y_api_calls(directory_path=directory_path)
         api_handler.post_MultipleNewCodelists(directory_path)
 
     else:
-        api_handler = i14y_api_calls(i14y_user_token)
+        api_handler = i14y_api_calls()
 
         if method == "-pc":
-            if len(sys.argv) < 4:
+            if len(sys.argv) < 3:
                 logging.error("Missing argument: file_path for -pc.")
                 sys.exit(1)
-            file_path = sys.argv[3]
+            file_path = sys.argv[2]
             api_handler.post_NewConcept(file_path)
 
         elif method == "-pcl":
-            if len(sys.argv) < 5:
+            if len(sys.argv) < 4:
                 logging.error("Missing argument: file_path und concept_id for -pcl.")
                 sys.exit(1)
             file_path, concept_id = sys.argv[3:4]
@@ -286,10 +324,10 @@ def main():
         
 
         elif method == "-dcl":
-            if len(sys.argv) < 4:
+            if len(sys.argv) < 3:
                 logging.error("Missing argument: concept_id for -dcl.")
                 sys.exit(1)
-            concept_id = sys.argv[3]
+            concept_id = sys.argv[2]
             api_handler.delete_CodelistEntries(concept_id)
 
         else:
