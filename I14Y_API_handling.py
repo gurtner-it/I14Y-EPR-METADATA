@@ -10,6 +10,7 @@ import sys
 import glob
 import certifi
 import datetime
+import time
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -22,20 +23,21 @@ class Config:
     PROD_CLIENT_ID = os.getenv("PROD_CLIENT_ID")
     PROD_CLIENT_SECRET = os.getenv("PROD_CLIENT_SECRET")
     PROD_TOKEN_URL = os.getenv("PROD_TOKEN_URL")
+    PROD_BASE_API_URL = os.getenv("PROD_BASE_API_URL")
 
     CLIENT_ID = os.getenv("ABN_CLIENT_ID")
     CLIENT_SECRET = os.getenv("ABN_CLIENT_SECRET")
     TOKEN_URL = os.getenv("ABN_TOKEN_URL")
+    BASE_API_URL = os.getenv("ABN_BASE_API_URL")
 
     if API_MODE == 'PROD':
         CLIENT_ID = PROD_CLIENT_ID
         CLIENT_SECRET = PROD_CLIENT_SECRET
         TOKEN_URL = PROD_TOKEN_URL
-    
-    print(TOKEN_URL)
+        BASE_API_URL = PROD_BASE_API_URL
 
-    BASE_API_URL = os.getenv("BASE_API_URL", "https://api.i14y.admin.ch/api/partner/v1")
-    CONCEPT_POST_URL = os.getenv("CONCEPT_POST_URL", f"{BASE_API_URL}/concepts")
+    # Assign CONCEPT_POST_URL after BASE_API_URL is set correctly
+    CONCEPT_POST_URL = f"{BASE_API_URL}concepts"
 
 
 # Setting up logging
