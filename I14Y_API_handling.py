@@ -235,22 +235,53 @@ class i14y_api_calls():
             logging.info("File posted successfully")
       
         except requests.exceptions.RequestException as e:
-            print(f"Request failed with error: {e.response.status_code} \nMore details: in file api_errors_log.txt")
+            # Get basic info
+            status_code = e.response.status_code if e.response else "No status code"
+            error_text = e.response.text if e.response else "No response text"
+
+            # Try to parse the JSON error response
+            try:
+                error_json = e.response.json()
+                detail = error_json.get("detail", "No detail provided.")
+                title = error_json.get("title", "")
+            except Exception:
+                detail = error_text
+                title = ""
+
+            # Check for known error cases
+            user_hint = ""
+            if "already exists" in detail:
+                user_hint = (
+                    "\nHint: The concept you're trying to post already exists on the server.\n"
+                    "Consider using the '-dcl' (delete_CodelistEntries) method before re-posting.\n"
+                )
+
+            # Show clean error summary in terminal
+            print(f"\n❌ Request failed with status code {status_code}: {title}")
+            print(f"Reason: {detail.strip()}")
+            print(user_hint)
+            print("More technical details are written to 'api_errors_log.txt'\n")
+
+            # Prepare full technical dump
             error_message = f"""
-                Status Code: {e.response.status_code}
-                Error Response: {e.response.text}
-                Response Headers: {dict(e.response.headers)}
-                Request Exception: {str(e)}
-                Request Details: {e.request.method} {e.request.url}
-                Request Headers: {dict(e.request.headers)}
-                Request Body: {e.request.body}
-                """
-            # Write error messages to file
+        Status Code: {status_code}
+        Error Response: {error_text}
+        Response Headers: {dict(e.response.headers) if e.response else 'No headers'}
+        Request Exception: {str(e)}
+        Request Details: {e.request.method if e.request else 'N/A'} {e.request.url if e.request else 'N/A'}
+        Request Headers: {dict(e.request.headers) if e.request else 'N/A'}
+        Request Body: {e.request.body if e.request else 'N/A'}
+        """
+
+            # Write to log
             log_path = os.path.join("AD_VS", "api_errors_log.txt")
             with open(log_path, 'a', encoding='utf-8') as f:
                 f.write(f"\n--- Error occurred at {datetime.datetime.now()} ---\n")
                 f.write(error_message)
                 f.write("\n--------------------\n")
+
+
+
     
     def post_MultipleConcepts(self, directory_path):
         # Find all JSON files in the directory
