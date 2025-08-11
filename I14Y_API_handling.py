@@ -30,6 +30,10 @@ class Config:
     CLIENT_SECRET = os.getenv("ABN_CLIENT_SECRET")
     TOKEN_URL = os.getenv("ABN_TOKEN_URL")
     BASE_API_URL = os.getenv("ABN_BASE_API_URL")
+    
+    # Publisher information
+    PUBLISHER_IDENTIFIER = os.getenv('PUBLISHER_IDENTIFIER', 'CH_eHealth')
+    PUBLISHER_NAME = os.getenv('PUBLISHER_NAME', 'eHealth Suisse')
 
     if API_MODE == 'PROD':
         CLIENT_ID = PROD_CLIENT_ID
@@ -106,6 +110,7 @@ class I14yApiClient:
             expires_in = data.get("expires_in", 3600)
             
             self.auth_token = f"Bearer {token}"
+            #logging.info(token)
             self.token_expiry = time.time() + expires_in - 60  # refresh 1 min early
             
             logging.info("Access token obtained successfully")
@@ -439,6 +444,108 @@ class I14yApiClient:
         except Exception as e:
             logging.error(f"Failed to write data to file: {e}")
 
+    def get_concepts(self, 
+                    concept_identifier: Optional[str] = None,
+                    publisher_identifier: Optional[str] = Config.PUBLISHER_IDENTIFIER,
+                    version: Optional[str] = None,
+                    publication_level: Optional[str] = None,
+                    registration_status: Optional[str] = None,
+                    page: Optional[int] = None,
+                    page_size: Optional[int] = None,
+                    save_to_file: Optional[str] = "AD_VS/epr_concepts.txt") -> Optional[Dict[str, Any]]:
+        """
+        Get concepts matching the given filters
+        
+        Args:
+            concept_identifier: Filter by specific concept identifier
+            publisher_identifier: Filter by publisher (defaults to " + Config.PUBLISHER_IDENTIFIER +")
+            version: Filter by version
+            publication_level: Filter by publication level ("Internal" or "Public")
+            registration_status: Filter by status ("Incomplete", "Candidate", "Recorded", 
+                            "Qualified", "Standard", "Preferred", "Standard", "Superseded", "Retired")
+            page: Page number for pagination
+            page_size: Maximum number of results per page
+            save_to_file: Optional file path to save the response JSON
+            
+        Returns:
+            Response JSON data or None if request failed
+        """
+
+        save_to_file = save_to_file or "AD_VS/epr_concepts.txt" 
+
+
+        # Build query parameters
+        params = {}
+        
+        if concept_identifier:
+            params['conceptIdentifier'] = concept_identifier
+        if publisher_identifier:
+            params['publisherIdentifier'] = publisher_identifier
+        if version:
+            params['version'] = version
+        if publication_level:
+            params['publicationLevel'] = publication_level
+        if registration_status:
+            params['registrationStatus'] = registration_status
+        if page is not None:
+            params['page'] = page
+        if page_size is not None:
+            params['pageSize'] = page_size
+        
+        # Build URL with query parameters
+        url = f"{Config.BASE_API_URL}/concepts"
+        
+        # Make the request
+        result = self._make_request(
+            method='GET',
+            url=url,
+            json_data=params,
+            operation_name=f"Getting concepts with filters: {params}"
+        )
+        
+        # Save to file if requested
+        if result and save_to_file:
+            self.save_response_to_file(result, save_to_file)
+        
+        return result
+
+    def get_epd_concepts(self, save_to_file: Optional[str] = "AD_VS/epr_concepts.txt") -> Optional[Dict[str, Any]]:
+        """
+        Get all EPD (Electronic Patient Record) concepts from eHealth Suisse (" + Config.PUBLISHER_IDENTIFIER + ")
+        
+        Args:
+            save_to_file: Optional file path to save the response JSON
+            
+        Returns:
+            Response JSON data or None if request failed
+        """
+
+        print("Fetching EPD concepts from eHealth Suisse...")
+
+        return self.get_concepts(
+            publisher_identifier=Config.PUBLISHER_IDENTIFIER,
+            save_to_file=save_to_file
+        )
+
+    def get_concept_by_id(self, concept_id: str, save_to_file: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        Get a specific concept by its identifier
+        
+        Args:
+            concept_id: The concept identifier to retrieve
+            save_to_file: Optional file path to save the response JSON
+            
+        Returns:
+            Response JSON data or None if request failed
+        """
+
+        print(f"Fetching concept with ID: {concept_id}")
+
+        return self.get_concepts(
+            concept_identifier=concept_id,
+            save_to_file=save_to_file
+        )
+
 
 def main():
     """Main execution function"""
@@ -453,6 +560,14 @@ def main():
         print("  -pmcl → post_multiple_new_codelists(directory_path)")
         print("  -dcl  → delete_codelist_entries(concept_id)")
         print("  -ucl  → update_codelist_entries(file_path, concept_id)")
+        print("\nGet Methods:")
+        print("  -gc   → get_concepts([filters...]) [output_file]")
+        print("  -gepd → get_epd_concepts([output_file])")
+        print("  -gci  → get_concept_by_id(concept_id) [output_file]")
+        print("\nGet Examples:")
+        print("  python3 I14Y_API_handling.py -gepd epd_concepts.json")
+        print("  python3 I14Y_API_handling.py -gci 08dd632d-aca1-b77d-80c2-3e6b677753f9")
+        print("  python3 I14Y_API_handling.py -gc --publisher='eHealth Suisse' --status=Standard")
         sys.exit(1)
 
     method = sys.argv[1]
@@ -507,9 +622,62 @@ def main():
                 concept_id = sys.argv[2]
                 api_client.delete_codelist_entries(concept_id)
 
+            # New GET methods
+            elif method == "-gepd":
+                # Get all EPD concepts
+                save_file = sys.argv[2] if len(sys.argv) > 2 else None
+
+                result = api_client.get_epd_concepts(save_to_file=save_file)
+
+                if result:
+                    print(f"Found {len(result.get('data', []))} EPD concepts")
+                    if not save_file:
+                        print(json.dumps(result, indent=2, ensure_ascii=False))
+
+            elif method == "-gci":
+                # Get concept by ID
+                if len(sys.argv) < 3:
+                    logging.error("Missing argument: concept_id for -gci.")
+                    sys.exit(1)
+                concept_id = sys.argv[2]
+                save_file = sys.argv[3] if len(sys.argv) > 3 else None
+                result = api_client.get_concept_by_id(concept_id, save_to_file=save_file)
+                if result and not save_file:
+                    print(json.dumps(result, indent=2, ensure_ascii=False))
+
+            elif method == "-gc":
+                # Advanced get concepts with filters
+                save_file = None
+                filters = {}
+                
+                # Parse additional arguments
+                for arg in sys.argv[2:]:
+                    if arg.endswith('.json'):
+                        save_file = arg
+                    elif arg.startswith('--publisher='):
+                        filters['publisher_identifier'] = arg.split('=', 1)[1]
+                    elif arg.startswith('--status='):
+                        filters['registration_status'] = arg.split('=', 1)[1]
+                    elif arg.startswith('--level='):
+                        filters['publication_level'] = arg.split('=', 1)[1]
+                    elif arg.startswith('--version='):
+                        filters['version'] = arg.split('=', 1)[1]
+                    elif arg.startswith('--id='):
+                        filters['concept_identifier'] = arg.split('=', 1)[1]
+                    elif arg.startswith('--page='):
+                        filters['page'] = int(arg.split('=', 1)[1])
+                    elif arg.startswith('--pagesize='):
+                        filters['page_size'] = int(arg.split('=', 1)[1])
+                
+                result = api_client.get_concepts(save_to_file=save_file, **filters)
+                if result:
+                    print(f"Found {len(result.get('data', []))} concepts")
+                    if not save_file:
+                        print(json.dumps(result, indent=2, ensure_ascii=False))
+
             else:
                 logging.error(f"Invalid method: {method}. "
-                            f"Accepted methods are: -pc, -pmc, -pcl, -pmcl, -dcl, -ucl.")
+                            f"Accepted methods are: -pc, -pmc, -pcl, -pmcl, -dcl, -ucl, -gepd, -gci, -gc.")
                 sys.exit(1)
 
     except I14yApiError as e:
