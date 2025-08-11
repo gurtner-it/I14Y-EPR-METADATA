@@ -66,7 +66,7 @@ PROD_BASE_API_URL=https://api.i14y.admin.ch/api/partner/v1
 ABN_CLIENT_ID=i14y_abn_ehealth_epd
 ABN_CLIENT_SECRET=your_secret
 ABN_TOKEN_URL=https://identity-a.bit.admin.ch/realms/bfs-sis-a/protocol/openid-connect/token
-ABN_BASE_API_URL=https://api-a.i14y.admin.ch/api/partner/v1/
+ABN_BASE_API_URL=https://api-a.i14y.admin.ch/api/partner/v1
 
 # Logging
 log_level=INFO
@@ -270,7 +270,7 @@ PROD_BASE_API_URL=https://api.i14y.admin.ch/api/partner/v1
 ABN_CLIENT_ID=i14y_abn_ehealth_epd
 ABN_CLIENT_SECRET=your_secret
 ABN_TOKEN_URL=https://identity-a.bit.admin.ch/realms/bfs-sis-a/protocol/openid-connect/token
-ABN_BASE_API_URL=https://api-a.i14y.admin.ch/api/partner/v1/
+ABN_BASE_API_URL=https://api-a.i14y.admin.ch/api/partner/v1
 
 # Logging
 log_level=INFO

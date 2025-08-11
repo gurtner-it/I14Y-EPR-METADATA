@@ -11,6 +11,7 @@ import glob
 import certifi
 import datetime
 import time
+from pathlib import Path
 from typing import Optional, Dict, Any, Union
 from dotenv import load_dotenv
 
@@ -79,6 +80,125 @@ class CodeListsId(enum.Enum):
     DocumentEntry_languageCode = '08dd632d-ac4d-977f-a53b-ec0b1af269f8'
     EprPurposeOfUse = '08dd632d-b2f7-197a-889f-18e7a917dd67'
     EprAgentRole = '08dd632d-aee2-333d-b1e4-505385fde8ff'
+
+
+class CodelistManager:
+    def __init__(self, mapping_file: str = None):
+        self.api_client = I14yApiClient()
+        self.mapping_file = Path(mapping_file)
+        self.mapping = self._load_mapping()
+        self.cache: Dict[str, str] = {}
+        
+    def _load_mapping(self) -> Dict[str, Any]:
+        """Load the filename to API identifier mapping"""
+        with open(self.mapping_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    
+    def get_codelist_id(self, filename: str) -> Optional[str]:
+        """Get codelist ID from filename, either from cache or API"""
+        base_filename = os.path.splitext(os.path.basename(filename))[0]
+        
+        # Check if we have a mapping for this filename
+        if base_filename not in self.mapping['concepts']:
+            return None
+            
+        mapping_info = self.mapping['concepts'][base_filename]
+        
+        # Try to get from API first
+        api_id = self._get_from_api(mapping_info.get('api_identifier'))
+        if api_id:
+            return api_id
+            
+        # Fall back to hardcoded ID if API fails
+        return mapping_info.get('fallback_id')
+    
+    def _get_from_api(self, identifier: Optional[str]) -> Optional[str]:
+        """Get codelist ID from API using the identifier"""
+        if not identifier:
+            return None
+            
+        # Check cache first
+        if identifier in self.cache:
+            return self.cache[identifier]
+            
+        # Call your existing API method
+        api_client = I14yApiClient()
+
+        concepts = api_client.get_concepts(
+            publisher_identifier=Config.PUBLISHER_IDENTIFIER,
+            save_to_file=None  # Don't save to file for this lookup
+        )
+
+        if concepts and concepts.get('data'):
+            # Assuming the first result is what we want
+            concepts = concepts['data'][0]
+            return concepts
+            
+        return None
+    
+    def refresh_cache(self):
+        """Clear the cache to force fresh API lookups"""
+        self.cache.clear()
+    
+    def update_mapping_from_api(self) -> bool:
+        """Update the mapping file with current data from API, handling Unicode properly"""
+        try:
+            # Get all EPD concepts from API
+            concepts = self.api_client.get_epd_concepts()
+
+            if not concepts or 'data' not in concepts:
+                logging.warning("No concepts data received from API")
+                return False
+            
+            # Build new mapping with proper Unicode handling
+            new_mapping = {
+                "concepts": {}, 
+                "last_updated": datetime.datetime.now().isoformat(),
+                "metadata": {
+                    "source": "I14Y API",
+                    "version": "1.0"
+                }
+            }
+            
+            for concept in concepts['data']:
+                try:
+                    # Use German name as key, fallback to English if German not available
+                    name = concept['name'].get('de') or concept['name'].get('en')
+                    if not name:
+                        logging.warning(f"Concept {concept.get('id')} has no name in DE or EN")
+                        continue
+
+                    # Create entry with all relevant information
+                    new_mapping['concepts'][name] = {
+                        'oid': concept['identifier'],
+                        'api_identifier': concept['id'],
+                        'concept_type': concept.get('conceptType'),
+                        'version': concept.get('version'),
+                        'status': concept.get('registrationStatus'),
+                        'validFrom': concept.get('validFrom'),
+                    }
+
+                except KeyError as ke:
+                    logging.warning(f"Missing expected field in concept: {ke}")
+                    continue
+            
+            # Save with ensure_ascii=False to preserve Unicode characters
+            with open(self.mapping_file, 'w', encoding='utf-8') as f:
+                json.dump(new_mapping, f, indent=2)
+            
+            self.mapping = new_mapping
+            logging.info(f"Successfully updated mapping with {len(new_mapping['concepts'])} concepts")
+            return True
+            
+        except json.JSONDecodeError as je:
+            logging.error(f"JSON processing error: {str(je)}")
+            return False
+        except IOError as ioe:
+            logging.error(f"File operation error: {str(ioe)}")
+            return False
+        except Exception as e:
+            logging.error(f"Unexpected error updating mapping: {str(e)}", exc_info=True)
+            return False
 
 
 class I14yApiClient:
@@ -564,6 +684,7 @@ def main():
         print("  -gc   → get_concepts([filters...]) [output_file]")
         print("  -gepd → get_epd_concepts([output_file])")
         print("  -gci  → get_concept_by_id(concept_id) [output_file]")
+        print("  -ucm  → update_codelist_mapping()")  # New method
         print("\nGet Examples:")
         print("  python3 I14Y_API_handling.py -gepd epd_concepts.json")
         print("  python3 I14Y_API_handling.py -gci 08dd632d-aca1-b77d-80c2-3e6b677753f9")
@@ -674,6 +795,15 @@ def main():
                     print(f"Found {len(result.get('data', []))} concepts")
                     if not save_file:
                         print(json.dumps(result, indent=2, ensure_ascii=False))
+            
+            elif method == "-ucm":
+                logging.info("Updating codelist mapping from API...")
+                codelist_manager = CodelistManager("codelist_mapping.json")
+                updated = codelist_manager.update_mapping_from_api()
+                if updated:
+                    logging.info("Codelist mapping updated successfully")
+                else:
+                    logging.warning("No updates were made to codelist mapping")
 
             else:
                 logging.error(f"Invalid method: {method}. "
