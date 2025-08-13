@@ -7,15 +7,15 @@ This toolkit provides two main capabilities:
 
 # AD_I14Y Transformator
 
-A Python script that transforms CSV and XML files into JSON format for i14y interoperability standards, specifically designed for Swiss eHealth systems.
+A Python script that transforms CSV and XML files (XML is recommended) into JSON format for i14y interoperability standards, specifically designed for Swiss eHealth systems.
 
 ## Overview
 
-This tool converts healthcare code lists from CSV or XML formats into standardized JSON format compatible with i14y (interoperability) requirements. It handles multilingual content (German, English, French, Italian, Romansh) and maintains proper code system relationships.
+This tool converts healthcare code lists from CSV or XML formats (XML is recommended) into standardized JSON format compatible with i14y (interoperability) requirements. It handles multilingual content (German, English, French, Italian, Romansh) and maintains proper code system relationships.
 
 ## Features
 
-- **Multi-format support**: Processes both CSV and XML input files
+- **Multi-format support**: Processes both CSV and XML input files (XML is recommended)
 - **Multilingual**: Supports 5 languages (de-CH, en-US, fr-CH, it-CH, rm-CH)
 - **Flexible output**: Can create new concepts or update existing ones
 - **Batch processing**: Processes entire folders of files
@@ -108,7 +108,7 @@ python AD_I14Y_transformator.py <responsible_key> <deputy_key> <input_folder> <o
 
 - `responsible_key`: Key for responsible person (PGR, SNE)
 - `deputy_key`: Key for deputy person (PGR, SNE)
-- `input_folder`: Path to folder containing CSV/XML files to process
+- `input_folder`: Path to folder containing CSV/XML files to process (XML is recommended)
 - `output_folder`: Path where JSON output files will be saved
 - `valid_from_date`: Date from which concept is valid (YYYY-MM-DD format)
 - `[options]`: Optional flags

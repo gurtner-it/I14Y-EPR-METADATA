@@ -36,7 +36,7 @@ class Config:
     DEFAULT_RESPONSIBLE_EMAIL = os.getenv('DEFAULT_RESPONSIBLE_EMAIL', 'pero.grgic@e-health-suisse.ch')
     DEFAULT_RESPONSIBLE_SHORT_NAME = os.getenv('DEFAULT_RESPONSIBLE_SHORT_NAME', 'PGR')
     DEFAULT_DEPUTY_EMAIL = os.getenv('DEFAULT_DEPUTY_EMAIL', 'stefanie.neuenschwander@e-health-suisse.ch')
-    DEFAULT_DEPUTY_SHORT_NAME = os.getenv('DEFAULT_RESPONSIBLE_SHORT_NAME', 'SNE')
+    DEFAULT_DEPUTY_SHORT_NAME = os.getenv('DEFAULT_DEPUTY_SHORT_NAME', 'SNE')
 
 class PublisherPersons:
     """Handles publisher person information"""
@@ -46,7 +46,7 @@ class PublisherPersons:
             Config.DEFAULT_RESPONSIBLE_SHORT_NAME: {
                 "email": Config.DEFAULT_RESPONSIBLE_EMAIL
             },
-            Config.DEFAULT_RESPONSIBLE_SHORT_NAME: {
+            Config.DEFAULT_DEPUTY_SHORT_NAME: {
                 "email": Config.DEFAULT_DEPUTY_EMAIL
             }
         }
@@ -100,12 +100,17 @@ class AD_csv_to_i14y_json():
                 if full_concept and full_concept.get('data'):
                     # Assuming the first result is what we want
                     clean_concept = full_concept['data'][0]
-                    concept_id = clean_concept.get('id')
-                    concept_instance.set_id(concept_id)
-                    print(f"Found concept ID: {concept_id} for OID: {oid}")
+                    id = clean_concept.get('id')
+
+                    if id:
+                        concept_instance.set_id(id)
+                        print(f"Found concept ID: {id} for OID: {oid}")
+                    else:
+                        print("Concept not found on I14Y, we need to create a new concept!")
+                        self.new_concept = True
                 else:
-                    print(f"Warning: Concept not found for OID: {oid}")
-                    # Continue processing even if ID not found
+                    print("Concept not found on I14Y, we need to create a new concept!")
+                    self.new_concept = True
 
             # Read second row to set indexes
             index_row = next(file)
@@ -174,6 +179,7 @@ class AD_csv_to_i14y_json():
                 periodEnd.set_Date(Config.DEFAULT_PERIOD_END)
 
                 self.codeListEntries.append([code, codeSystem, periodStart, periodEnd, synonymPS, synonymAS])
+                concept_instance.set_validFrom(self.validFrom)
                 self.concept = concept_instance
 
     def process_xml(self):
@@ -192,11 +198,17 @@ class AD_csv_to_i14y_json():
             # Assuming the first result is what we want
             clean_concept = full_concept['data'][0]
             id = clean_concept.get('id')
-        else:
-            print("Skipping, concept not found")
-            return
 
-        concept_instance.set_id(id)
+            if id:
+                concept_instance.set_id(id)
+                print(f"Found concept ID: {id} for OID: {oid}")
+            else:
+                print("Concept not found on I14Y, we need to create a new concept!")
+                self.new_concept = True
+        else:
+            print("Concept not found on I14Y, we need to create a new concept!")
+            self.new_concept = True
+
         concept_instance.set_identifier(value_set.get('id'))
         concept_instance.set_validFrom(self.validFrom)
         
@@ -323,8 +335,8 @@ class AD_csv_to_i14y_json():
                         "it": Config.PUBLISHER_NAME,
                     }
                 },
-                "responsibleDeputy": self.deputy_person,
                 "responsiblePerson": self.responsible_person,
+                "responsibleDeputy": self.deputy_person,
                 "themes": [],
                 "validFrom": self.concept.get_validFrom(),
                 "version": Config.DEFAULT_VERSION
@@ -427,14 +439,11 @@ class AD_csv_to_i14y_json():
         return {"data": output}
 
     def write_to_json(self):
-        if self.fileExtension == "csv":
+
+        if self.new_concept is True:
+            output = self.create_concept_output()
+        else:
             output = self.create_codeListEntries_output(self.codeListEntries)
-        elif self.fileExtension == "xml":
-            if self.new_concept is True:
-                output = self.create_concept_output()
-            else:
-                output = self.create_codeListEntries_output(self.codeListEntries)
-            #output = self.create_codeListEntries_output(self.codeListEntries)
         
         with open(self.json_output_file_path, 'w', encoding="utf-8") as json_file:
             json.dump(output, json_file, indent=4, ensure_ascii=False)

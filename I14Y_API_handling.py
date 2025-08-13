@@ -45,7 +45,7 @@ class Config:
         BASE_API_URL = PROD_BASE_API_URL
 
     # Assign CONCEPT_POST_URL after BASE_API_URL is set correctly
-    CONCEPT_POST_URL = f"{BASE_API_URL}concepts"
+    CONCEPT_POST_URL = f"{BASE_API_URL}/concepts"
 
 # Setting up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -238,7 +238,7 @@ class I14yApiClient:
             expires_in = data.get("expires_in", 3600)
             
             self.auth_token = f"Bearer {token}"
-            #logging.info(token)
+            logging.info(token)
             self.token_expiry = time.time() + expires_in - 60  # refresh 1 min early
             
             logging.info("Access token obtained successfully")
@@ -345,7 +345,7 @@ class I14yApiClient:
         """Get user-friendly hints based on error details"""
         if "already exists" in detail.lower():
             return ("\nHint: The concept you're trying to post already exists on the server.\n"
-                   "Consider using the '-dcl' (delete_CodelistEntries) method before re-posting.\n")
+                   "Consider using the '-dcl' (delete_CodelistEntries) method before re-posting or delete the concept using '-dc' .\n")
         elif "not found" in detail.lower():
             return "\nHint: The requested resource was not found. Please check the concept ID.\n"
         elif "unauthorized" in detail.lower():
@@ -454,6 +454,15 @@ class I14yApiClient:
             method='GET',
             url=get_url,
             operation_name="Fetching codelist entry"
+        )
+    
+    def delete_concept(self, concept_id: str) -> Optional[Dict[str, Any]]:
+        """CAVE: Deletes a concept"""
+        url = f"{Config.BASE_API_URL}/concepts/{concept_id}/"
+        return self._make_request(
+            method='DELETE',
+            url=url,
+            operation_name=f"Deleting a concept {concept_id}"
         )
 
     def delete_codelist_entries(self, concept_id: str) -> Optional[Dict[str, Any]]:
@@ -586,7 +595,10 @@ class I14yApiClient:
     def save_response_to_file(data: Dict[str, Any], file_path: str):
         """Save API response data to a JSON file"""
         try:
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            dir_path = os.path.dirname(file_path)
+            if dir_path:  # Only create if not empty
+                os.makedirs(dir_path, exist_ok=True)
+
             with open(file_path, 'w', encoding='utf-8') as file:
                 json.dump(data, file, indent=4, ensure_ascii=False)
             logging.info(f"Data has been written to {file_path}")
@@ -650,7 +662,7 @@ class I14yApiClient:
             url=url,
             operation_name=f"Getting concepts with filters: {params}"
         )
-        
+
         # Save to file if requested
         if result and save_to_file:
             self.save_response_to_file(result, save_to_file)
@@ -669,7 +681,7 @@ class I14yApiClient:
         """
 
         print("Fetching EPD concepts from eHealth Suisse...")
-
+        
         return self.get_concepts(
             publisher_identifier=Config.PUBLISHER_IDENTIFIER,
             save_to_file=save_to_file
@@ -707,6 +719,7 @@ def main():
         print("  -pmc  → post_multiple_concepts(directory_path)")
         print("  -pcl  → post_codelist_entries(file_path, concept_id)")
         print("  -pmcl → post_multiple_new_codelists(directory_path)")
+        print("  -dc   → delete_concept(concept_id)")
         print("  -dcl  → delete_codelist_entries(concept_id)")
         print("  -ucl  → update_codelist_entries(file_path, concept_id)")
         print("\nGet Methods:")
@@ -771,6 +784,13 @@ def main():
                     sys.exit(1)
                 concept_id = sys.argv[2]
                 api_client.delete_codelist_entries(concept_id)
+
+            elif method == "-dc":
+                if len(sys.argv) < 3:
+                    logging.error("Missing argument: concept_id for -dc.")
+                    sys.exit(1)
+                concept_id = sys.argv[2]
+                api_client.delete_concept(concept_id)
 
             # New GET methods
             elif method == "-gepd":
