@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I14Y XML/JSON Transformer & API Upload</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #f0f0f0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px 25px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab:first-child {
+            border-radius: 10px 0 0 0;
+        }
+
+        .tab:last-child {
+            border-radius: 0 10px 0 0;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: #fafbfc;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+            background: white;
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-upload input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-upload-label {
+            display: block;
+            padding: 15px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .file-upload-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(240, 147, 251, 0.4);
+        }
+
+        .file-list {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            min-height: 60px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .file-item {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #666;
+            border: 1px solid #e1e5e9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-item .remove {
+            color: #ff6b6b;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-block;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #333;
+        }
+
+        .output {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #4facfe;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .success {
+            border-left-color: #28a745;
+            background: #f8fff9;
+        }
+
+        .error {
+            border-left-color: #dc3545;
+            background: #fff8f8;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4facfe;
+        }
+
+        .info-box h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .info-box p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>I14Y Transformer & API</h1>
+            <p>Transform XML to JSON and upload to I14Y API</p>
+        </div>
+
+        <div class="main-content">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('transform')">Transform Files</button>
+                <button class="tab" onclick="switchTab('api')">API Operations</button>
+            </div>
+
+            <!-- Transform Tab -->
+            <div id="transform" class="tab-content active">
+                <div class="info-box">
+                    <h3>File Transformation</h3>
+                    <p>Upload XML files to transform them into I14Y JSON format. Fill in the required metadata and select your files.</p>
+                </div>
+
+                <form id="transformForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="responsibleKey">Responsible Key *</label>
+                            <input type="text" id="responsibleKey" name="responsibleKey" placeholder="e.g., PGR" value="PGR" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="deputyKey">Deputy Key *</label>
+                            <input type="text" id="deputyKey" name="deputyKey" placeholder="e.g., SNE" value="SNE" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="dateValidFrom">Date Valid From *</label>
+                        <input type="date" id="dateValidFrom" name="dateValidFrom" required>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="createNew" name="createNew">
+                            <label for="createNew">Create new concept (otherwise creates new version)</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="files">Select Files (XML)</label>
+                        <div class="file-upload">
+                            <input type="file" id="files" multiple accept=".xml" onchange="handleFileSelect(event)">
+                            <label for="files" class="file-upload-label">
+                                📁 Choose Files or Drag & Drop
+                            </label>
+                        </div>
+                        <div id="fileList" class="file-list">
+                            <span style="color: #999;">No files selected</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn">Transform Files</button>
+                </form>
+            </div>
+
+            <!-- API Tab -->
+            <div id="api" class="tab-content">
+                <div class="info-box">
+                    <h3>API Operations</h3>
+                    <p>Perform various operations with the I14Y API including uploading concepts, managing codelists, and retrieving data.</p>
+                </div>
+
+                <form id="apiForm">
+                    <div class="form-group">
+                        <label for="apiMethod">API Method *</label>
+                        <select id="apiMethod" name="apiMethod" onchange="updateApiForm()" required>
+                            <option value="">Select an operation...</option>
+                            <optgroup label="Upload Operations">
+                                <option value="-pc">Post New Concept</option>
+                                <option value="-pmc">Post Multiple Concepts</option>
+                                <option value="-pcl">Post Codelist Entries</option>
+                                <option value="-pmcl">Post Multiple Codelists</option>
+                            </optgroup>
+                            <optgroup label="Get Operations">
+                                <option value="-gc">Get Concepts</option>
+                                <option value="-gepd">Get EPD Concepts</option>
+                                <option value="-gci">Get Concept by ID</option>
+                                <option value="-gce">Get Codelist Entry</option>
+                            </optgroup>
+                            <optgroup label="Update/Delete">
+                                <option value="-ucl">Update Codelist Entries</option>
+                                <option value="-dcl">Delete Codelist Entries</option>
+                                <option value="-dc">Delete Concept</option>
+                                <option value="-ucm">Update Codelist Mapping</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div id="apiParameters"></div>
+
+                    <button type="submit" class="btn">Execute API Call</button>
+                </form>
+            </div>
+
+            <div id="output" class="output" style="display: none;">
+                <div id="outputContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFiles = [];
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelector(`.tab:nth-child(${tabName === 'transform' ? '1' : '2'})`).classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            showOutput('');
+        }
+
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            selectedFiles = files;
+            updateFileList();
+        }
+
+        function updateFileList() {
+            const fileList = document.getElementById('fileList');
+            
+            if (selectedFiles.length === 0) {
+                fileList.innerHTML = '<span style="color: #999;">No files selected</span>';
+                return;
+            }
+
+            fileList.innerHTML = selectedFiles.map((file, index) => `
+                <div class="file-item">
+                    📄 ${file.name}
+                    <span class="remove" onclick="removeFile(${index})">×</span>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileList();
+        }
+
+        function updateApiForm() {
+            const method = document.getElementById('apiMethod').value;
+            const parametersDiv = document.getElementById('apiParameters');
+            
+            parametersDiv.innerHTML = '';
+
+            if (!method) return;
+
+            const parameters = getParametersForMethod(method);
+            
+            parameters.forEach(param => {
+                const div = document.createElement('div');
+                div.className = 'form-group';
+                
+                if (param.type === 'file') {
+                    div.innerHTML = `
+                        <label for="${param.name}">${param.label} ${param.required ? '*' : ''}</label>
+                        <div class="file-upload">
+                            <input type="file" id="${param.name}" name="${param.name}" ${param.required ? 'required' : ''} ${param.accept ? `accept="${param.accept}"` : ''}>
+                            <label for="${param.name}" class="file-upload-label">Choose File</label>
+                        </div>
+                    `;
+                } else if (param.type === 'select') {
+                    div.innerHTML = `
+                        <label for="${param.name}">${param.label} ${param.required ? '*' : ''}</label>
+                        <select id="${param.name}" name="${param.name}" ${param.required ? 'required' : ''}>
+                            ${param.options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('')}
+                        </select>
+                    `;
+                } else {
+                    div.innerHTML = `
+                        <label for="${param.name}">${param.label} ${param.required ? '*' : ''}</label>
+                        <input type="${param.type}" id="${param.name}" name="${param.name}" placeholder="${param.placeholder || ''}" ${param.required ? 'required' : ''}>
+                    `;
+                }
+                
+                parametersDiv.appendChild(div);
+            });
+        }
+
+        function getParametersForMethod(method) {
+            const parameterMap = {
+                '-pc': [
+                    { name: 'filePath', label: 'JSON File Path', type: 'file', required: true, accept: '.json' }
+                ],
+                '-pmc': [
+                    { name: 'directoryPath', label: 'Directory Path', type: 'text', required: true, placeholder: 'Path to directory' }
+                ],
+                '-pcl': [
+                    { name: 'filePath', label: 'JSON File Path', type: 'file', required: true, accept: '.json' },
+                    { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept identifier' }
+                ],
+                '-pmcl': [
+                    { name: 'directoryPath', label: 'Directory Path', type: 'text', required: true, placeholder: 'Path to directory' }
+                ],
+                '-gce': [
+                    { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept identifier' }
+                ],
+                '-gci': [
+                    { name: 'conceptId', label: 'Concept ID or OID', type: 'text', required: true, placeholder: 'Concept identifier or OID' },
+                    { name: 'outputFile', label: 'Output File (optional)', type: 'text', required: false, placeholder: 'output.json' }
+                ],
+                '-gc': [
+                    { name: 'publisher', label: 'Publisher', type: 'text', required: false, placeholder: 'e.g., eHealth Suisse' },
+                    { name: 'status', label: 'Status', type: 'select', required: false, options: [
+                        { value: '', label: 'All' },
+                        { value: 'Standard', label: 'Standard' },
+                        { value: 'Draft', label: 'Draft' },
+                        { value: 'Published', label: 'Published' }
+                    ]},
+                    { name: 'outputFile', label: 'Output File (optional)', type: 'text', required: false, placeholder: 'output.json' }
+                ],
+                '-gepd': [
+                    { name: 'outputFile', label: 'Output File (optional)', type: 'text', required: false, placeholder: 'epd_concepts.json' }
+                ],
+                '-ucl': [
+                    { name: 'filePath', label: 'JSON File Path', type: 'file', required: true, accept: '.json' },
+                    { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept identifier' }
+                ],
+                '-dcl': [
+                    { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept identifier' }
+                ],
+                '-dc': [
+                    { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept identifier' }
+                ],
+                '-ucm': []
+            };
+
+            return parameterMap[method] || [];
+        }
+
+        function showOutput(content, isError = false) {
+            const output = document.getElementById('output');
+            const outputContent = document.getElementById('outputContent');
+            
+            output.style.display = 'block';
+            output.className = `output ${isError ? 'error' : 'success'}`;
+            outputContent.textContent = content;
+            
+            // Scroll to output
+            output.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Form submissions - REAL API CALLS
+        document.getElementById('transformForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (selectedFiles.length === 0) {
+                showOutput('Please select at least one file to transform.', true);
+                return;
+            }
+
+            const formData = new FormData(this);
+            
+            // Add files to formData
+            selectedFiles.forEach((file, index) => {
+                formData.append('files', file);
+            });
+
+            showOutput('🔄 Processing files... This may take a moment.');
+
+            try {
+                // REAL API CALL TO FLASK BACKEND
+                const response = await fetch('http://localhost:5001/api/transform', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const output = `✅ Transformation completed successfully!
+                    
+📁 Files processed: ${result.input_files.join(', ')}
+📄 Output files: ${result.output_files.join(', ')}
+📂 Output folder: ${result.output_folder}
+
+${result.stdout}
+
+🎉 All files have been transformed to I14Y JSON format!`;
+                    showOutput(output);
+                } else {
+                    showOutput(`❌ Transformation failed: ${result.error}\n\n${result.stderr || ''}`, true);
+                }
+            } catch (error) {
+                showOutput(`❌ Network error: ${error.message}\n\nMake sure the Flask backend is running on http://localhost:5001`, true);
+            }
+        });
+
+        document.getElementById('apiForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const method = formData.get('apiMethod');
+            
+            if (!method) {
+                showOutput('Please select an API method.', true);
+                return;
+            }
+
+            showOutput('🔄 Executing API call... Please wait.');
+
+            try {
+                // Convert FormData to JSON for API methods
+                const data = {};
+                for (let [key, value] of formData.entries()) {
+                    data[key] = value;
+                }
+
+                // REAL API CALL TO FLASK BACKEND
+                const response = await fetch('http://localhost:5001/api/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const output = `✅ API call executed successfully!
+                    
+🔧 Method: ${method}
+${Object.entries(data).filter(([key]) => key !== 'apiMethod').map(([key, value]) => `📋 ${key}: ${value}`).join('\n')}
+
+${result.stdout}
+
+🎉 Operation completed successfully!`;
+                    showOutput(output);
+                } else {
+                    showOutput(`❌ API call failed: ${result.error}\n\n${result.stdout || ''}`, true);
+                }
+            } catch (error) {
+                showOutput(`❌ Network error: ${error.message}\n\nMake sure the Flask backend is running on http://localhost:5001`, true);
+            }
+        });
+
+        // Set default date to today
+        document.getElementById('dateValidFrom').valueAsDate = new Date();
+    </script>
+</body>
+</html>

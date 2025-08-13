@@ -448,13 +448,18 @@ class I14yApiClient:
                 operation_name=f"Posting codelist entries for concept {concept_id}"
             )
 
-    def get_codelist_entry(self, get_url: str) -> Optional[Dict[str, Any]]:
+    def get_codelist_entry(self, concept_id: str, save_to_file: str) -> Optional[Dict[str, Any]]:
         """Get codelist entry (needs to be connected with save_data_to_file)"""
-        return self._make_request(
+
+        url = f"{Config.BASE_API_URL}/concepts/{concept_id}/codelist-entries/exports/json"
+
+        result = self._make_request(
             method='GET',
-            url=get_url,
+            url=url,
             operation_name="Fetching codelist entry"
         )
+    
+        return self.save_response_to_file(result, save_to_file)
     
     def delete_concept(self, concept_id: str) -> Optional[Dict[str, Any]]:
         """CAVE: Deletes a concept"""
@@ -719,6 +724,7 @@ def main():
         print("  -pmc  → post_multiple_concepts(directory_path)")
         print("  -pcl  → post_codelist_entries(file_path, concept_id)")
         print("  -pmcl → post_multiple_new_codelists(directory_path)")
+        print("  -gce  → get_codelist_entry(concept_id)")
         print("  -dc   → delete_concept(concept_id)")
         print("  -dcl  → delete_codelist_entries(concept_id)")
         print("  -ucl  → update_codelist_entries(file_path, concept_id)")
@@ -753,6 +759,14 @@ def main():
             
             api_client = I14yApiClient(directory_path=directory_path)
             api_client.post_multiple_new_codelists(directory_path)
+
+        elif method == "-gce":
+            if len(sys.argv) < 3:
+                logging.error("Missing argument: concept_id for -gce.")
+                sys.exit(1)
+            concept_id = sys.argv[2]
+            api_client = I14yApiClient()
+            api_client.get_codelist_entry(concept_id, "epd_codelist_entry.json")
 
         else:
             api_client = I14yApiClient()
