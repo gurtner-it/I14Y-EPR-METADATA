@@ -81,6 +81,23 @@ class CodeListsId(enum.Enum):
     EprPurposeOfUse = '08dd632d-b2f7-197a-889f-18e7a917dd67'
     EprAgentRole = '08dd632d-aee2-333d-b1e4-505385fde8ff'
 
+def set_env(prod_or_abn_env: Optional[str] = None):
+
+    if prod_or_abn_env == 'ABN':    
+        Config.CLIENT_ID = os.getenv("ABN_CLIENT_ID")
+        Config.CLIENT_SECRET = os.getenv("ABN_CLIENT_SECRET")
+        Config.TOKEN_URL = os.getenv("ABN_TOKEN_URL")
+        Config.BASE_API_URL = os.getenv("ABN_BASE_API_URL")
+    elif prod_or_abn_env == 'PROD':            
+        Config.CLIENT_ID = os.getenv("PROD_CLIENT_ID")
+        Config.CLIENT_SECRET = os.getenv("PROD_CLIENT_SECRET")
+        Config.TOKEN_URL = os.getenv("PROD_TOKEN_URL")
+        Config.BASE_API_URL = os.getenv("PROD_BASE_API_URL")
+    else:
+        logging.error("prod_or_abn_env must be either 'PROD' or 'ABN'")
+        sys.exit(1)
+
+    logging.info(f"Using environment: {prod_or_abn_env}")
 
 class CodelistManager:
     def __init__(self, mapping_file: str = None):

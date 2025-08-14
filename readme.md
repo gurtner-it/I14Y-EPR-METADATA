@@ -96,6 +96,42 @@ DEFAULT_PERIOD_START=2024-06-01
 DEFAULT_PERIOD_END=2100-06-01
 ```
 
+
+# 🖥️ Launching the GUI
+
+This project provides a simple web-based interface for interacting with the scripts.
+
+## 1. Start the Flask Backend
+
+Open a terminal and run:
+
+```bash
+python app.py
+```
+
+> By default, the backend will run on port `5001`.
+
+## 2. Serve the Frontend
+
+Open another terminal in the `frontend` folder and start a simple HTTP server:
+
+```bash
+python -m http.server 8080
+```
+
+> The frontend will now be available on port `8080`.
+
+## 3. Access the Application
+
+Open your web browser and navigate to:
+
+```
+http://localhost:8080
+```
+
+> The GUI will communicate with the backend running on port `5001`.
+
+
 ## Usage
 
 ### Basic Usage
