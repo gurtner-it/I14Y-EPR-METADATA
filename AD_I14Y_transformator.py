@@ -719,7 +719,7 @@ def main():
             output_file = os.path.join(output_folder, new_filename)
             transformer.json_output_file_path = output_file
             
-            print(f"Processing file: {input_file} -> {output_file}")
+            #print(f"Processing file: {input_file} -> {output_file}")
             
             # Write the JSON output
             transformer.write_to_json()

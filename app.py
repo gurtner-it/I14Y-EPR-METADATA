@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 import os
+import sys
 import subprocess
 import tempfile
 import json
@@ -18,24 +19,9 @@ logger = logging.getLogger(__name__)
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 AD_VS_FOLDER = 'AD_VS'
+OUTPUT_FOLDER = os.path.join(AD_VS_FOLDER, 'Transformed')
 ALLOWED_EXTENSIONS = {'xml', 'json'}
-
-# Create folder if it doesn't exist
-os.makedirs(AD_VS_FOLDER, exist_ok=True)
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# Delete all files inside the folder
-for filename in os.listdir(UPLOAD_FOLDER):
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
-    try:
-        if os.path.isfile(file_path) or os.path.islink(file_path):
-            os.unlink(file_path)  # remove file or link
-        elif os.path.isdir(file_path):
-            shutil.rmtree(file_path)  # remove directory
-    except Exception as e:
-        print(f"Failed to delete {file_path}. Reason: {e}")
         
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -101,6 +87,13 @@ def index():
 def transform_files():
     """Handle file transformation requests"""
     try:
+        # 1️⃣ Clean up old uploads and output folders
+        for folder in [UPLOAD_FOLDER, OUTPUT_FOLDER]:
+            if os.path.exists(folder):
+                shutil.rmtree(folder, ignore_errors=True)
+                logger.info(f"Deleted folder: {folder}")
+            os.makedirs(folder, exist_ok=True)
+
         # Get form data
         responsible_key = request.form.get('responsibleKey')
         deputy_key = request.form.get('deputyKey')
@@ -167,10 +160,13 @@ def transform_files():
             result = run_python_script('AD_I14Y_transformator.py', args)
             
             if result['success']:
-                # Get list of output files
                 output_files = []
+
                 if os.path.exists(output_folder):
-                    output_files = os.listdir(output_folder)
+                    output_files = [
+                        f for f in os.listdir(output_folder)
+                        if not f.startswith('.')  # ignores .DS_Store, .gitkeep, etc.
+                    ]
                 
                 return jsonify({
                     'success': True,

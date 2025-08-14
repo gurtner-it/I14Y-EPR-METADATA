@@ -345,6 +345,9 @@
             margin: auto;
             width: 50%;
         }
+        #outputContent {
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 <body>
@@ -644,11 +647,17 @@
 
                 if (result.success) {
                     const output = `✅ Transformation completed successfully!
-                    
-📁 Files processed: ${result.input_files.join(', ')}
-📄 Output files: ${result.output_files.join(', ')}
-📂 Output folder: ${result.output_folder}
 
+📁 Files processed:
+- ${result.input_files.join('\n- ')}
+
+📄 Output files:
+- ${result.output_files.join('\n- ')}
+
+📂 Output folder: 
+${result.output_folder}
+
+Details:
 ${result.stdout}
 
 🎉 All files have been transformed to I14Y JSON format!`;
