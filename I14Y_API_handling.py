@@ -79,7 +79,7 @@ class Config:
         BASE_API_URL = PROD_BASE_API_URL
         print(f"🔴 USING PRODUCTION ENVIRONMENT")
         #print(f"   Client ID: {CLIENT_ID}")
-        #print(f"   Base URL: {BASE_API_URL}")
+        print(f"   Base URL: {BASE_API_URL}")
     else:  # Default to ABN
         CLIENT_ID = ABN_CLIENT_ID
         CLIENT_SECRET = ABN_CLIENT_SECRET
@@ -87,7 +87,7 @@ class Config:
         BASE_API_URL = ABN_BASE_API_URL
         print(f"🟡 USING ABN ENVIRONMENT")
         #print(f"   Client ID: {CLIENT_ID}")
-        #print(f"   Base URL: {BASE_API_URL}")
+        print(f"   Base URL: {BASE_API_URL}")
 
     # Validate that we have the required credentials
     if not all([CLIENT_ID, CLIENT_SECRET, TOKEN_URL, BASE_API_URL]):
@@ -108,6 +108,7 @@ class Config:
     @classmethod
     def print_config(cls):
         """Print current configuration (without secrets)"""
+        print("")
         print("="*50)
         print("CURRENT CONFIGURATION:")
         print(f"API Mode: {cls.API_MODE}")
@@ -116,6 +117,7 @@ class Config:
         print(f"Publisher: {cls.PUBLISHER_IDENTIFIER}")
         print(f"Client ID: {cls.CLIENT_ID}")
         print("="*50)
+        print("")
         
 # Setting up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -158,6 +160,13 @@ class CodelistManager:
         self.cache: Dict[str, str] = {}
         
     def _load_mapping(self) -> Dict[str, Any]:
+        """Load the filename to API identifier mapping, create file if missing"""
+        if not self.mapping_file.exists():
+            # Create file with empty dict
+            self.mapping_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.mapping_file, 'w', encoding='utf-8') as f:
+                json.dump({}, f, indent=2)
+
         """Load the filename to API identifier mapping"""
         with open(self.mapping_file, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -236,9 +245,11 @@ class CodelistManager:
             }
             
             for concept in concepts['data']:
+
                 try:
                     # Use German name as key, fallback to English if German not available
                     name = concept['name'].get('de') or concept['name'].get('en')
+
                     if not name:
                         logging.warning(f"Concept {concept.get('id')} has no name in DE or EN")
                         continue
@@ -262,7 +273,7 @@ class CodelistManager:
                 json.dump(new_mapping, f, indent=2)
             
             self.mapping = new_mapping
-            logging.info(f"Successfully updated mapping with {len(new_mapping['concepts'])} concepts")
+            logging.info(f"Successfully updated mapping with {len(new_mapping['concepts'])} concepts: {self.mapping_file}")
             return True
             
         except json.JSONDecodeError as je:
@@ -305,7 +316,7 @@ class I14yApiClient:
             expires_in = data.get("expires_in", 3600)
             
             self.auth_token = f"Bearer {token}"
-            logging.info(token)
+            #logging.info(token)
             self.token_expiry = time.time() + expires_in - 60  # refresh 1 min early
             
             logging.info("Access token obtained successfully")
@@ -398,12 +409,20 @@ class I14yApiClient:
         # Provide user-friendly hints for common errors
         user_hint = self._get_error_hint(detail)
 
+        print("")
+        print("-"*50)
+        print("START ERROR")
+        print("-"*50)
         # Display clean error summary
         print(f"\n❌ {operation_name} failed with status code '{status_code}': {title}\n")
         print(f"Reason: {detail.strip()}")
         if user_hint:
             print(user_hint)
         print("More technical details are written to 'api_errors_log.txt'\n")
+        print("-"*50)
+        print("END ERROR")
+        print("-"*50)
+        print("")
 
         # Log detailed error information
         self._log_detailed_error(exception, operation_name)
@@ -506,6 +525,8 @@ class I14yApiClient:
 
         url = f"{Config.BASE_API_URL}/concepts/{concept_id}/codelist-entries/imports/json"
         
+        #print(url)
+
         with open(file_path, 'rb') as file:
             files = {'file': (os.path.basename(file_path), file, 'application/json')}
             return self._make_request(
@@ -525,6 +546,8 @@ class I14yApiClient:
             url=url,
             operation_name="Fetching codelist entry"
         )
+
+        logging.info(f"Found {len(result.get('data', []))} codelists")
     
         return self.save_response_to_file(result, save_to_file)
     
@@ -545,6 +568,27 @@ class I14yApiClient:
             url=url,
             operation_name=f"Deleting codelist entries for concept {concept_id}"
         )
+    
+    def set_publication_level(self, publication_level: str, concept_id: str) -> Optional[Dict[str, Any]]:
+        """Set the publication level of a concept"""
+        url = f"{Config.BASE_API_URL}/concepts/{concept_id}/publication-level"
+        return self._make_request(
+            method="PUT",
+            url=url,
+            json_data={"level": publication_level},
+            operation_name=f"Set publication level for concept {concept_id}"
+        )
+
+    
+    def set_registration_status(self, registration_status: str, concept_id: str) -> Optional[Dict[str, Any]]:
+            """Delete all codelist entries for a concept"""
+            
+            url = f"{Config.BASE_API_URL}/concepts/{concept_id}/registration-status?status={registration_status}"
+            return self._make_request(
+                method='PUT',
+                url=url,
+                operation_name=f"Set publication level for concept {concept_id}"
+            )
 
     def update_codelist_entries(self, file_path: str, concept_id: str) -> bool:
         """Update codelist entries by deleting existing ones and posting new ones"""
@@ -552,12 +596,14 @@ class I14yApiClient:
         
         # Delete existing entries
         delete_result = self.delete_codelist_entries(concept_id)
+
         if delete_result is None:
             logging.error("Failed to delete existing entries")
             return False
         
         # Post new entries
         post_result = self.post_codelist_entries(file_path, concept_id)
+
         return post_result is not None
 
     def post_new_concept(self, file_path: str) -> Optional[Dict[str, Any]]:
@@ -608,20 +654,20 @@ class I14yApiClient:
             logging.warning(f"No *_transformed.json files found in {directory_path}")
             return
         
-        print(f"Found {len(json_files)} files to process")
+        logging.info(f"Found {len(json_files)} files to process")
         
         for json_file in json_files:
-            print(f"Processing file: {json_file}")
+            logging.info(f"Processing file: {json_file}")
             
             # Extract identifier from filename
             filename = os.path.basename(json_file)
             identifier = self.extract_identifier_from_filename(filename)
 
             if identifier:
-                print(f"Posting {json_file} with identifier: {identifier}")
+                logging.info(f"Posting {json_file} with identifier: {identifier}")
                 self.update_codelist_entries(json_file, identifier)
             else:
-                print(f"No matching identifier found for {json_file}")
+                logging.info(f"No matching identifier found for {json_file}")
 
     def post_multiple_concepts(self, directory_path: str):
         """Post multiple concept files from a directory"""
@@ -631,10 +677,10 @@ class I14yApiClient:
             logging.warning(f"No JSON files found in {directory_path}")
             return
 
-        print(f"Found {len(json_files)} concept files to process")
+        logging.info(f"Found {len(json_files)} concept files to process")
 
         for json_file in json_files:
-            print(f"Posting concept file: {json_file}")
+            logging.info(f"Posting concept file: {json_file}")
             self.post_new_concept(json_file)
 
     @staticmethod
@@ -713,6 +759,8 @@ class I14yApiClient:
         if result and save_to_file:
             self.save_response_to_file(result, save_to_file)
         
+        logging.info(f"Found {len(result.get('data', []))} concepts")
+
         return result
 
     def get_epd_concepts(self, save_to_file: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -726,37 +774,43 @@ class I14yApiClient:
             Response JSON data or None if request failed
         """
 
-        print("Fetching EPD concepts from eHealth Suisse...")
+        logging.info("Fetching EPD concepts from eHealth Suisse...")
         
         return self.get_concepts(
             publisher_identifier=Config.PUBLISHER_IDENTIFIER,
             save_to_file=save_to_file
         )
 
-    def get_concept_by_id(self, concept_id: str, save_to_file: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get_concept_by_identifier(self, concept_identifier: str, save_to_file: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
-        Get a specific concept by its identifier or OID
+        Get a specific concept by its identifier (OID)
         
         Args:
-            concept_id: The concept identifier to retrieve
+            concept_identifier: The concept identifier to retrieve: Usually the OID (2.16.756.5.30.1.127.3.10.1.11)
             save_to_file: Optional file path to save the response JSON
             
         Returns:
             Response JSON data or None if request failed
         """
 
-        print(f"Fetching concept with ID: {concept_id}")
+        logging.info(f"Fetching concept with ID: {concept_identifier}")
 
         return self.get_concepts(
-            concept_identifier=concept_id,
+            concept_identifier=concept_identifier,
             publisher_identifier=None,
             save_to_file=save_to_file
         )
 
 
 def main():
-    """Main execution function"""
-    logging.basicConfig(level=logging.INFO)
+    # Force all logging to stdout
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stdout,
+        force=True
+    )
     
     # Add this line to see which environment you're using (Debug Stuff)
     #Config.print_config()
@@ -774,9 +828,12 @@ def main():
         print("  -ucl  → update_codelist_entries(file_path, concept_id)")
         print("\nGet Methods:")
         print("  -gc   → get_concepts([filters...]) [output_file]")
-        print("  -gec → get_epd_concepts([output_file])")
-        print("  -gci  → get_concept_by_id(concept_id or OID) [output_file]")
-        print("  -ucm  → update_codelist_mapping()")  # New method
+        print("  -gec  → get_epd_concepts([output_file])")
+        print("  -gci  → get_concept_by_identifier(OID) [output_file]")
+        print("  -ucm  → update_mapping_from_api()")  # New method
+        print("\Status & Publication level Methods:")
+        print("  -spl   → set_publication_level(publication_level, concept_id)")
+        print("  -srs   → set_registration_status(registration_status, concept_id)")
         print("\nGet Examples:")
         print("  python3 I14Y_API_handling.py -gec epd_concepts.json")
         print("  python3 I14Y_API_handling.py -gci 08dd632d-aca1-b77d-80c2-3e6b677753f9")
@@ -827,7 +884,22 @@ def main():
                     logging.error("Missing arguments: file_path and concept_id for -pcl.")
                     sys.exit(1)
                 file_path, concept_id = sys.argv[2], sys.argv[3]
+                #print(file_path)
                 api_client.post_codelist_entries(file_path, concept_id)
+
+            elif method == "-spl":
+                if len(sys.argv) < 4:
+                    logging.error("Missing arguments: publication_level and concept_id for -spl.")
+                    sys.exit(1)
+                publication_level, concept_id = sys.argv[2], sys.argv[3]
+                api_client.set_publication_level(publication_level, concept_id)
+
+            elif method == "-srs":
+                if len(sys.argv) < 4:
+                    logging.error("Missing arguments: registration_status and concept_id for -srs.")
+                    sys.exit(1)
+                registration_status, concept_id = sys.argv[2], sys.argv[3]
+                api_client.set_registration_status(registration_status, concept_id)
 
             elif method == "-ucl":
                 if len(sys.argv) < 4:
@@ -850,7 +922,6 @@ def main():
                 concept_id = sys.argv[2]
                 api_client.delete_concept(concept_id)
 
-            # New GET methods
             elif method == "-gec":
                 # Get all EPD concepts
                 save_file = sys.argv[2] if len(sys.argv) > 2 else None
@@ -858,19 +929,17 @@ def main():
                 result = api_client.get_epd_concepts(save_to_file=save_file)
 
                 if result:
-                    print(f"Found {len(result.get('data', []))} EPD concepts")
-                    
                     if not save_file:
                         print(json.dumps(result, indent=2, ensure_ascii=False))
 
             elif method == "-gci":
-                # Get concept by ID
+                # Get concept by identifier
                 if len(sys.argv) < 3:
-                    logging.error("Missing argument: concept_id for -gci.")
+                    logging.error("Missing argument: concept_identifier for -gci.")
                     sys.exit(1)
-                concept_id = sys.argv[2]
+                concept_identifier = sys.argv[2]
                 save_file = sys.argv[3] if len(sys.argv) > 3 else None
-                result = api_client.get_concept_by_id(concept_id, save_to_file=save_file)
+                result = api_client.get_concept_by_identifier(concept_identifier, save_to_file=save_file)
                 if result and not save_file:
                     print(json.dumps(result, indent=2, ensure_ascii=False))
 
@@ -900,7 +969,6 @@ def main():
                 
                 result = api_client.get_concepts(save_to_file=save_file, **filters)
                 if result:
-                    print(f"Found {len(result.get('data', []))} concepts")
                     if not save_file:
                         print(json.dumps(result, indent=2, ensure_ascii=False))
             
@@ -916,7 +984,7 @@ def main():
 
             else:
                 logging.error(f"Invalid method: {method}. "
-                            f"Accepted methods are: -pc, -pmc, -pcl, -pmcl, -dcl, -ucl, -gec, -gci, -gc.")
+                            f"Accepted methods are: -pc, -pmc, -pcl, -pmcl, -dcl, -ucl, -gec, -gci, -gc, -spl, -srs.")
                 sys.exit(1)
 
     except I14yApiError as e:
@@ -926,7 +994,7 @@ def main():
         logging.error(f"Unexpected error: {e}")
         sys.exit(1)
 
-    logging.info("Script execution completed successfully.")
+    logging.info("🎉 Script execution completed successfully.")
 
 
 if __name__ == "__main__":

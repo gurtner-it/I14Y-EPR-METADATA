@@ -1,0 +1,309 @@
+let selectedFiles = [];
+
+function switchTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
+
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    document.getElementById(tabName).classList.add('active');
+
+    showOutput('API results will be shown here.');
+}
+
+function handleFileSelect(event) {
+    const files = Array.from(event.target.files);
+    selectedFiles = files;
+    updateFileList();
+}
+
+function updateFileList() {
+    const fileList = document.getElementById('fileList');
+    
+    if (selectedFiles.length === 0) {
+        fileList.innerHTML = '<span style="color: #999;">No files selected</span>';
+        return;
+    }
+
+    fileList.innerHTML = selectedFiles.map((file, index) => `
+        <div class="file-item">
+            📄 ${file.name}
+            <span class="remove" onclick="removeFile(${index})">×</span>
+        </div>
+    `).join('');
+}
+
+function removeFile(index) {
+    selectedFiles.splice(index, 1);
+    updateFileList();
+}
+
+function updateApiForm() {
+    const method = document.getElementById('apiMethod').value;
+    const parametersDiv = document.getElementById('apiParameters');
+    
+    parametersDiv.innerHTML = '';
+
+    if (!method) return;
+
+    const parameters = getParametersForMethod(method);
+    
+    parameters.forEach(param => {
+        const div = document.createElement('div');
+        div.className = 'form-group';
+        
+        if (param.type === 'file') {
+            div.innerHTML = `
+                <label for="${param.name}">${param.label} ${param.required ? '*' : ''}</label>
+                <div class="file-upload">
+                    <input type="file" id="${param.name}" name="${param.name}" ${param.required ? 'required' : ''} ${param.accept ? `accept="${param.accept}"` : ''}>
+                    <label for="${param.name}" class="file-upload-label">Choose File</label>
+                </div>
+            `;
+        } else if (param.type === 'select') {
+            div.innerHTML = `
+                <label for="${param.name}">${param.label} ${param.required ? '*' : ''}</label>
+                <select id="${param.name}" name="${param.name}" ${param.required ? 'required' : ''}>
+                    ${param.options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('')}
+                </select>
+            `;
+        } else {
+            div.innerHTML = `
+                <label for="${param.name}">${param.label} ${param.required ? '*' : ''}</label>
+                <input type="${param.type}" id="${param.name}" name="${param.name}" placeholder="${param.placeholder || ''}" ${param.required ? 'required' : ''} ${param.value ? `value="${param.value}"` : ''} ${param.disabled ? 'disabled' : ''}>
+            `;
+        }
+        
+        parametersDiv.appendChild(div);
+    });
+
+    addFileListener();
+}
+
+function getParametersForMethod(method) {
+    const parameterMap = {
+        '-pc': [
+            { name: 'filePath', label: 'JSON File Path', type: 'file', required: true, accept: '.json' }
+        ],
+        '-pmc': [
+            { name: 'directoryPath', label: 'Directory Path', type: 'text', required: true, placeholder: 'Path to directory', value: 'AD_VS/Transformed' }
+        ],
+        '-pcl': [
+            { name: 'filePath', label: 'JSON File Path', type: 'file', required: true, accept: '.json' },
+            { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' }
+        ],
+        '-pmcl': [
+            { name: 'directoryPath', label: 'Directory Path', type: 'text', required: true, placeholder: 'Path to directory', value: 'AD_VS/Transformed'  }
+        ],
+        '-gce': [
+            { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' },
+            { name: 'message', label: 'Output File', type: 'text', required: false, value: 'Stored in epd_codelist_entry.json', disabled: true }
+        ],
+        '-gci': [
+            { name: 'conceptId', label: 'Concept identifier (OID)', type: 'text', required: true, placeholder: 'Concept identifier: 2.16.756.5.30.1.127.3.10.1.11' },
+            { name: 'outputFile', label: 'Output File (optional)', type: 'text', required: false, placeholder: 'output.json' }
+        ],
+        '-gc': [
+            { name: 'publisher', label: 'Publisher', type: 'text', required: false, placeholder: 'e.g. CH_eHealth', value: 'CH_eHealth' },
+            { name: 'status', label: 'Status', type: 'select', required: false, options: [
+                { value: '', label: 'All' },
+                { value: 'Standard', label: 'Standard' },
+                { value: 'Incomplete', label: 'Incomplete' },
+                { value: 'Candidate', label: 'Candidate' },
+                { value: 'Recorded', label: 'Recorded' },
+                { value: 'Qualified', label: 'Qualified' },
+                { value: 'PreferredStandard', label: 'PreferredStandard' },
+                { value: 'Superseded', label: 'Superseded' },
+                { value: 'Retired', label: 'Retired' }
+
+            ]},
+            { name: 'outputFile', label: 'Output File (optional)', type: 'text', required: false, placeholder: 'output.json' }
+        ],
+        '-gec': [
+            { name: 'outputFile', label: 'Output File (optional)', type: 'text', required: false, placeholder: 'epd_concepts.json', value: 'epd_concepts.json' }
+        ],
+        '-ucl': [
+            { name: 'filePath', label: 'JSON File Path', type: 'file', required: true, accept: '.json' },
+            { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' }
+        ],
+        '-dcl': [
+            { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' }
+        ],
+        '-dc': [
+            { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' }
+        ],
+        '-spl': [
+            { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' },
+            { name: 'publication_level', label: 'level', type: 'select', required: false, options: [
+                { value: 'Internal', label: 'Internal' },
+                { value: 'Public', label: 'Public' },
+            ]}
+        ],
+        '-srs': [
+            { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' },
+            { name: 'registration_status', label: 'Status', type: 'select', required: false, options: [
+                { value: '', label: '--- Most important:' },
+                { value: 'Standard', label: 'Standard (e.g. eCH or a defined standard)' },
+                { value: 'Recorded', label: 'Recorded (proprietary code)' },
+                { value: 'Retired', label: 'Retired' },
+                { value: '', label: '--- Not relevant:' },
+                { value: 'Incomplete', label: 'Incomplete' },
+                { value: 'Candidate', label: 'Candidate' },
+                { value: 'Qualified', label: 'Qualified' },
+                { value: 'PreferredStandard', label: 'PreferredStandard' },
+                { value: 'Superseded', label: 'Superseded' },
+            ]},
+        ],
+        '-ucm':  [
+            { name: 'fakeFile', label: 'File', type: 'text', required: true, placeholder: 'Stored to codelist_mapping.json', disabled: true }
+        ],
+    };
+
+    return parameterMap[method] || [];
+}
+
+function showOutput(content, isError = false) {
+    const output = document.getElementById('output');
+    const outputContent = document.getElementById('outputContent');
+    
+    output.style.display = 'block';
+    output.className = `output ${isError ? 'error' : 'success'}`;
+    outputContent.textContent = content;
+}
+
+function addFileListener() {
+    document.getElementById("filePath").addEventListener("change", function(event) {
+        const file = event.target.files[0];
+        if (!file) return; // no file selected
+
+        const fileName = file.name;
+
+        // Extract UUID with regex
+        const match = fileName.match(
+            /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/
+        );
+
+        if (match) {
+            const extractedId = match[1];
+            console.log("Extracted ID:", extractedId);
+            document.getElementById("conceptId").value = extractedId;
+        } else {
+            console.error("❌ No UUID found in filename!");
+        }
+    });
+}
+
+// Form submissions - REAL API CALLS
+document.getElementById('transformForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (selectedFiles.length === 0) {
+        showOutput('Please select at least one file to transform.', true);
+        return;
+    }
+
+    const formData = new FormData(this);
+    
+    // Add files to formData
+    selectedFiles.forEach((file, index) => {
+        formData.append('files', file);
+    });
+
+    showOutput('🔄 Processing files... This may take a moment.');
+
+    try {
+        // REAL API CALL TO FLASK BACKEND
+        const response = await fetch('http://localhost:5001/api/transform', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            const output = `✅ Transformation completed successfully!
+
+📁 Files processed:
+- ${result.input_files.join('\n- ')}
+
+📄 Output files:
+- ${result.output_files.join('\n- ')}
+
+📂 Output folder: 
+${result.output_folder}
+
+Details:
+${result.stdout}`;
+            showOutput(output);
+        } else {
+            showOutput(`❌ Transformation failed: ${result.error}\n\n${result.stderr || ''}`, true);
+        }
+    } catch (error) {
+        showOutput(`❌ Network error: ${error.message}\n\nMake sure the Flask backend is running on http://localhost:5001`, true);
+    }
+});
+
+document.getElementById('apiForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const method = formData.get('apiMethod');
+    
+    if (!method) {
+        showOutput('Please select an API method.', true);
+        return;
+    }
+
+    showOutput('🔄 Executing API call... Please wait.');
+
+    try {
+        // Convert FormData to JSON for API methods
+        const data = {};
+        for (let [key, value] of formData.entries()) {
+            data[key] = value;
+        }
+
+        const fileInput = document.getElementById('filePath');
+        let response;
+
+        if (fileInput && fileInput.files.length > 0) {
+            // File exists → send FormData
+            const fileFormData = new FormData();
+            fileFormData.append('apiMethod', data.apiMethod);
+            if (data.conceptId) fileFormData.append('conceptId', data.conceptId);
+            fileFormData.append('filePath', fileInput.files[0]);
+
+            response = await fetch('http://localhost:5001/api/execute', {
+                method: 'POST',
+                body: fileFormData
+            });
+        } else {
+            // No file → send JSON
+            response = await fetch('http://localhost:5001/api/execute', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            const output = `API call executed (see logs below for more details)
+            
+🔧 Method: ${data.apiMethod}
+${Object.entries(data).filter(([key]) => key !== 'apiMethod').map(([key, value]) => `📋 ${key}: ${value}`).join('\n')}
+
+${result.stdout}`;
+            showOutput(output);
+        } else {
+            showOutput(`❌ API call failed: ${result.error}\n\n${result.stdout || ''}`, true);
+        }
+    } catch (error) {
+        showOutput(`❌ Network error: ${error.message}\n\nMake sure the Flask backend is running on http://localhost:5001`, true);
+    }
+});
+
+// Set default date to today
+document.getElementById('dateValidFrom').valueAsDate = new Date();
