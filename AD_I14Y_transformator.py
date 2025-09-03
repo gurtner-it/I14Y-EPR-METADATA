@@ -6,6 +6,7 @@ import sys
 import csv
 import os
 import re
+import logging
 import xml.etree.ElementTree as ET
 import enum
 from dotenv import load_dotenv
@@ -95,7 +96,7 @@ class AD_csv_to_i14y_json():
                 concept_instance.set_identifier(oid)
                 
                 # Get the concept ID from the API using the OID
-                full_concept = self.api_handler.get_concept_by_id(oid)
+                full_concept = self.api_handler.get_concept_by_identifier(oid)
                 
                 if full_concept and full_concept.get('data'):
                     # Assuming the first result is what we want
@@ -192,7 +193,7 @@ class AD_csv_to_i14y_json():
         concept_instance.set_name(value_set.get('name'))
 
         oid = value_set.get('id')    
-        full_concept = self.api_handler.get_concept_by_id(oid)
+        full_concept = self.api_handler.get_concept_by_identifier(oid)
 
         if full_concept and full_concept.get('data'):
             # Assuming the first result is what we want
@@ -679,6 +680,15 @@ def process_filename(filename: str) -> str:
     return clean_name.strip()
 
 def main():
+    # Force all logging to stdout
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stdout,
+        force=True
+    )
+
     if len(sys.argv) < 5:
         print("Usage: python script_name.py <responsible_key> <deputy_key> <input_folder_path> <output_folder_path> <Date_Valid_From> [-n]")
         print("  <Date_Valid_From>   → date from which the concept is valid. needs to be in 'YYYY-MM-DD' format")
@@ -725,7 +735,7 @@ def main():
             transformer.write_to_json()
             print(f"Transformed {filename} -> {new_filename} \n ---------------------------------------------------------------")
     
-    print(f"All transformations complete. Output files written to: {output_folder}")
+    print(f"🎉 All transformations complete. Output files written to: {output_folder}")
 
 if __name__ == "__main__":
     main()

@@ -201,7 +201,12 @@ def transform_files():
 def execute_api_command():
     """Handle API command execution"""
     try:
-        data = request.get_json()
+        # Detect if this is a multipart/form-data request (file upload) or JSON
+        if request.content_type and request.content_type.startswith('multipart/form-data'):
+            data = request.form.to_dict()
+        else:
+            data = request.get_json(force=True) or {}
+
         method = data.get('apiMethod')
         
         if not method:
@@ -215,9 +220,26 @@ def execute_api_command():
         
         # Handle different methods and their parameters
         if method in ['-pc', '-pcl', '-ucl']:
-            # Methods that need file path
-            if 'filePath' in data:
-                args.append(str(data['filePath']))
+            print(request.files)
+            if 'filePath' in request.files:
+                # Save uploaded file
+                file = request.files['filePath']
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    file_path = os.path.join(UPLOAD_FOLDER, filename)
+                    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                    file.save(file_path)
+                    args.append(file_path)
+                else:
+                    return jsonify({'success': False, 'error': 'Invalid file type'}), 400
+            elif request.is_json:
+                # If already sending a path from backend/server-side
+                file_path = request.json.get('filePath')
+                if file_path:
+                    args.append(file_path)
+                else:
+                    return jsonify({'success': False, 'error': 'No file provided'}), 400
+                
             if method in ['-pcl', '-ucl'] and 'conceptId' in data:
                 args.append(str(data['conceptId']))
                 
@@ -226,7 +248,7 @@ def execute_api_command():
             if 'directoryPath' in data:
                 args.append(str(data['directoryPath']))
                 
-        elif method in ['-gce', '-gci', '-dcl', '-dc']:
+        elif method in ['-gce', '-gci', '-dcl', '-dc', '-spl', '-srs']:
             # Methods that need concept ID
             if 'conceptId' in data:
                 args.append(str(data['conceptId']))
