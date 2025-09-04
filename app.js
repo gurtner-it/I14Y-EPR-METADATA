@@ -135,14 +135,14 @@ function getParametersForMethod(method) {
         ],
         '-spl': [
             { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' },
-            { name: 'publication_level', label: 'level', type: 'select', required: false, options: [
+            { name: 'publicationLevel', label: 'level', type: 'select', required: false, options: [
                 { value: 'Internal', label: 'Internal' },
                 { value: 'Public', label: 'Public' },
             ]}
         ],
         '-srs': [
             { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' },
-            { name: 'registration_status', label: 'Status', type: 'select', required: false, options: [
+            { name: 'registrationStatus', label: 'Status', type: 'select', required: false, options: [
                 { value: '', label: '--- Most important:' },
                 { value: 'Standard', label: 'Standard (e.g. eCH or a defined standard)' },
                 { value: 'Recorded', label: 'Recorded (proprietary code)' },

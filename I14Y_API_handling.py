@@ -571,11 +571,10 @@ class I14yApiClient:
     
     def set_publication_level(self, publication_level: str, concept_id: str) -> Optional[Dict[str, Any]]:
         """Set the publication level of a concept"""
-        url = f"{Config.BASE_API_URL}/concepts/{concept_id}/publication-level"
+        url = f"{Config.BASE_API_URL}/concepts/{concept_id}/publication-level?level={publication_level}"
         return self._make_request(
             method="PUT",
             url=url,
-            json_data={"level": publication_level},
             operation_name=f"Set publication level for concept {concept_id}"
         )
 
@@ -831,7 +830,7 @@ def main():
         print("  -gec  → get_epd_concepts([output_file])")
         print("  -gci  → get_concept_by_identifier(OID) [output_file]")
         print("  -ucm  → update_mapping_from_api()")  # New method
-        print("\Status & Publication level Methods:")
+        print("\nStatus & Publication level Methods:")
         print("  -spl   → set_publication_level(publication_level, concept_id)")
         print("  -srs   → set_registration_status(registration_status, concept_id)")
         print("\nGet Examples:")
@@ -891,7 +890,8 @@ def main():
                 if len(sys.argv) < 4:
                     logging.error("Missing arguments: publication_level and concept_id for -spl.")
                     sys.exit(1)
-                publication_level, concept_id = sys.argv[2], sys.argv[3]
+                print(sys.argv[1])
+                publication_level, concept_id = sys.argv[3], sys.argv[2]
                 api_client.set_publication_level(publication_level, concept_id)
 
             elif method == "-srs":
