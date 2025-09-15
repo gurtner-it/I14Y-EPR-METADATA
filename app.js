@@ -56,6 +56,23 @@ async function emptyApiErrors() {
     }
 }
 
+async function loadTokenFromLog() {
+    try {
+        const logText = document.getElementById('outputContent').textContent;
+
+        // Extract token between markers
+        const match = logText.match(/<token_start>\s*(.*?)\s*<token_end>/);
+        if (match && match[1]) {
+            const token = match[1].trim();
+            document.getElementById('tokenInput').value = token;
+            console.log('Token loaded:', token);
+        } else {
+            console.warn('Token not found in log');
+        }
+    } catch (err) {
+        console.error('Failed to load token from log:', err);
+    }
+}
 
 
 function handleFileSelect(event) {
@@ -219,6 +236,10 @@ function showOutput(content, isError = false) {
 }
 
 function addFileListener() {
+    if(!document.getElementById("filePath")) {
+        return;
+    }
+
     document.getElementById("filePath").addEventListener("change", function(event) {
         const file = event.target.files[0];
         if (!file) return; // no file selected
@@ -343,6 +364,8 @@ ${Object.entries(data).filter(([key]) => key !== 'apiMethod').map(([key, value])
 
 ${result.stdout}`;
             showOutput(output);
+
+            await loadTokenFromLog();
         } else {
             showOutput(`❌ API call failed: ${result.error}\n\n${result.stdout || ''}`, true);
         }

@@ -316,7 +316,7 @@ class I14yApiClient:
             expires_in = data.get("expires_in", 3600)
             
             self.auth_token = f"Bearer {token}"
-            #logging.info(token)
+            logging.info(f"<token_start>Bearer {token}<token_end>")
             self.token_expiry = time.time() + expires_in - 60  # refresh 1 min early
             
             logging.info("Access token obtained successfully")
