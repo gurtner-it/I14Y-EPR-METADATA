@@ -438,6 +438,12 @@ class I14yApiClient:
             return "\nHint: Authentication failed. Please check your credentials.\n"
         elif "forbidden" in detail.lower():
             return "\nHint: Access denied. You may not have permission for this operation.\n"
+        elif "internal server error" in detail.lower():
+            return ("\nHint: The server encountered an error processing your request.\n"
+                   "Common causes:\n"
+                   "  - Invalid data format (e.g., sending concept metadata instead of codelist entries)\n"
+                   "  - The concept doesn't exist yet (create it first with -pc)\n"
+                   "  - Data validation failed on the server side\n")
         return ""
 
     def _log_detailed_error(self, exception: requests.exceptions.RequestException, operation_name: str):
@@ -519,14 +525,32 @@ class I14yApiClient:
         return True
 
     def post_codelist_entries(self, file_path: str, concept_id: str) -> Optional[Dict[str, Any]]:
-        """Post codelist entries from a JSON file"""
+        """
+        Post codelist entries from a JSON file
+        
+        IMPORTANT: This endpoint expects ONLY codelist entries, not concept metadata.
+        The file should contain an array of entries like:
+        {
+          "data": [
+            {
+              "code": "1051",
+              "name": {
+                "de": "Name in German",
+                "en": "Name in English",
+                ...
+              }
+            },
+            ...
+          ]
+        }
+        
+        Do NOT send the full concept definition (with identifier, publisher, etc.)
+        """
         if not self._validate_file_exists(file_path):
             return None
 
         url = f"{Config.BASE_API_URL}/concepts/{concept_id}/codelist-entries/imports/json"
         
-        #print(url)
-
         with open(file_path, 'rb') as file:
             files = {'file': (os.path.basename(file_path), file, 'application/json')}
             return self._make_request(
@@ -621,7 +645,7 @@ class I14yApiClient:
         
         return self._make_request(
             method='POST',
-            url=f"{Config.CONCEPT_POST_URL}/f5c1267f-33b9-4298-810f-13759a67c58c",
+            url=Config.CONCEPT_POST_URL,  # Changed: removed the UUID suffix
             headers=headers,
             json_data=payload,
             operation_name=f"Posting new concept from {file_path}"
