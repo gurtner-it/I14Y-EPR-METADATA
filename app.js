@@ -12,8 +12,8 @@ function switchTab(tabName) {
     if(tabName == "api_errors") {
         loadApiErrors();
     }
-
-    showOutput('API results will be shown here.');
+    
+    // Don't clear the output when switching tabs - preserve the last result
 }
 
 async function loadReadme() {
@@ -125,6 +125,7 @@ function updateApiForm() {
                     <input type="file" id="${param.name}" name="${param.name}" ${param.required ? 'required' : ''} ${param.accept ? `accept="${param.accept}"` : ''}>
                     <label for="${param.name}" class="file-upload-label">Choose File</label>
                 </div>
+                <div id="${param.name}-selected" class="selected-file" style="margin-top: 8px; color: #666; font-size: 14px;"></div>
             `;
         } else if (param.type === 'select') {
             div.innerHTML = `
@@ -244,9 +245,19 @@ function addFileListener() {
 
     document.getElementById("filePath").addEventListener("change", function(event) {
         const file = event.target.files[0];
-        if (!file) return; // no file selected
+        const selectedFileDiv = document.getElementById("filePath-selected");
+        
+        if (!file) {
+            if (selectedFileDiv) selectedFileDiv.textContent = "";
+            return;
+        }
 
         const fileName = file.name;
+        
+        // Show selected file name
+        if (selectedFileDiv) {
+            selectedFileDiv.innerHTML = `📄 <strong>Selected:</strong> ${fileName}`;
+        }
 
         // Extract UUID with regex
         const match = fileName.match(
@@ -256,7 +267,10 @@ function addFileListener() {
         if (match) {
             const extractedId = match[1];
             console.log("Extracted ID:", extractedId);
-            document.getElementById("conceptId").value = extractedId;
+            const conceptIdField = document.getElementById("conceptId");
+            if (conceptIdField) {
+                conceptIdField.value = extractedId;
+            }
         } else {
             console.error("❌ No UUID found in filename!");
         }
