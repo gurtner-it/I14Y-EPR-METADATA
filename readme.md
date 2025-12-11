@@ -69,13 +69,13 @@ API_MODE=ABN
 # PROD Credentials
 PROD_CLIENT_ID=i14y_prod_ehealth_epd
 PROD_CLIENT_SECRET=your_secret
-PROD_TOKEN_URL=https://identity.bit.admin.ch/realms/bfs-sis-p/protocol/openid-connect/token
+PROD_TOKEN_URL=https://identity.i14y.c.bfs.admin.ch/realms/bfs-sis-p/protocol/openid-connect/token
 PROD_BASE_API_URL=https://api.i14y.admin.ch/api/partner/v1
 
 # ABN Credentials
 ABN_CLIENT_ID=i14y_abn_ehealth_epd
 ABN_CLIENT_SECRET=your_secret
-ABN_TOKEN_URL=https://identity-a.bit.admin.ch/realms/bfs-sis-a/protocol/openid-connect/token
+ABN_TOKEN_URL=https://identity.i14y.a.c.bfs.admin.ch/realms/bfs-sis-a/protocol/openid-connect/token
 ABN_BASE_API_URL=https://api-a.i14y.admin.ch/api/partner/v1
 
 # Logging
