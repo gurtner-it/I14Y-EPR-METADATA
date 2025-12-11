@@ -63,6 +63,12 @@
                         <input type="date" id="dateValidFrom" name="dateValidFrom" required>
                     </div>
 
+                    <div class="form-group">
+                        <label for="version">Version *</label>
+                        <input type="text" id="version" name="version" placeholder="e.g., 2.0.3" value="1.0.0" required>
+                        <small id="version-status" style="color: #666; display: block; margin-top: 4px;">⚠️ Please increment version before transforming</small>
+                    </div>
+
                     <div class="form-group" style="display:none">
                         <div class="checkbox-group">
                             <input type="checkbox" id="createNew" name="createNew">
@@ -160,6 +166,14 @@
         In the GUI, choose the <b>Transform Files</b> tab.  
         Your XML files from <code>AD_VS/XML</code> will be converted into I14Y-compliant JSON 
         and saved under <code>AD_VS/Transformed/Concepts</code> and <code>AD_VS/Transformed/Codelists</code>.
+        <p class="hint">
+        ✅ <strong>Version Management (Important!):</strong><br>
+        • When you select XML files, the system automatically fetches the <strong>current version</strong> from I14Y<br>
+        • <strong>You must increment the version</strong> before transforming (e.g., 2.0.2 → 2.0.3)<br>
+        • For new concepts: Start with <code>1.0.0</code><br>
+        • For updates: Increment major (3.0.0), minor (2.1.0), or patch (2.0.1) as needed<br>
+        • If API fetch fails, default is <code>1.0.0</code>
+        </p>
         <p class="hint">This automatically creates both concept definitions and their code lists.</p>
         </li>
 

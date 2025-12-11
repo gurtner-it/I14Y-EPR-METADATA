@@ -12,8 +12,8 @@ function switchTab(tabName) {
     if(tabName == "api_errors") {
         loadApiErrors();
     }
-    
-    // Don't clear the output when switching tabs - preserve the last result
+
+    showOutput('API results will be shown here.');
 }
 
 async function loadReadme() {
@@ -77,10 +77,70 @@ async function loadTokenFromLog() {
 }
 
 
-function handleFileSelect(event) {
+async function handleFileSelect(event) {
     const files = Array.from(event.target.files);
     selectedFiles = files;
     updateFileList();
+    
+    // Fetch current version from first selected file
+    if (files.length > 0) {
+        await fetchCurrentVersion(files[0].name);
+    }
+}
+
+async function fetchCurrentVersion(fileName) {
+    const versionInput = document.getElementById('version');
+    const versionStatus = document.getElementById('version-status');
+    
+    try {
+        // Extract concept name from filename (e.g., "VS_DocumentEntry.classCode_..." -> "DocumentEntry.classCode")
+        const conceptMatch = fileName.match(/VS[_ ](.+?)_/);
+        if (!conceptMatch) {
+            console.warn('Could not extract concept name from filename');
+            versionStatus.innerHTML = '⚠️ Could not detect concept name';
+            return;
+        }
+        
+        const conceptName = conceptMatch[1];
+        
+        // Show loading spinner
+        versionStatus.innerHTML = '🔄 Fetching current version from I14Y API...';
+        versionInput.value = '';
+        versionInput.placeholder = 'Loading...';
+        
+        // Call backend to get concept by name/identifier
+        const response = await fetch('http://localhost:5001/api/get-concept-version', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ conceptName: conceptName }),
+            signal: AbortSignal.timeout(10000)  // 10 second timeout
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.version) {
+            versionInput.value = result.version;
+            versionInput.placeholder = 'e.g., 2.0.3';
+            versionStatus.innerHTML = `✅ Current version in I14Y: <strong>${result.version}</strong> - Please increment before transforming`;
+            console.log(`✅ Fetched version: ${result.version}`);
+        } else {
+            // No version found in API - use 1.0.0
+            versionInput.value = '1.0.0';
+            versionInput.placeholder = 'e.g., 1.0.1';
+            versionStatus.innerHTML = 'ℹ️ Concept not found in I14Y. Starting with version <strong>1.0.0</strong>';
+            console.log(`ℹ️ No existing version found for ${conceptName}. Using 1.0.0`);
+        }
+    } catch (error) {
+        // API call failed - use 1.0.0 as fallback
+        console.warn('Could not fetch current version (backend may not be running):', error.message);
+        versionInput.value = '1.0.0';
+        versionInput.placeholder = 'e.g., 1.0.1';
+        versionStatus.innerHTML = '⚠️ Could not connect to API. Using default version <strong>1.0.0</strong>';
+    }
 }
 
 function updateFileList() {
@@ -160,7 +220,7 @@ function getParametersForMethod(method) {
             { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' }
         ],
         '-pmcl': [
-            { name: 'directoryPath', label: 'Directory Path', type: 'text', required: true, placeholder: 'Path to directory', value: 'AD_VS/Transformed'  }
+            { name: 'directoryPath', label: 'Directory Path', type: 'text', required: true, placeholder: 'Path to directory', value: 'AD_VS/Transformed' }
         ],
         '-gce': [
             { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' },

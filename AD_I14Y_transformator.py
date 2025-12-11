@@ -59,7 +59,7 @@ class PublisherPersons:
 class AD_csv_to_i14y_json():
     """Main transformer class that handles CSV and XML to JSON conversion"""
     
-    def __init__(self, file_path, output_file_path, file_name, responsible_key, deputy_key, validFrom, new_concept):
+    def __init__(self, file_path, output_file_path, file_name, responsible_key, deputy_key, validFrom, new_concept, version=None):
         self.file_path = file_path
         self.json_output_file_path_concepts = output_file_path
         self.json_output_file_path_codelists = output_file_path
@@ -72,6 +72,7 @@ class AD_csv_to_i14y_json():
         self.deputy_person = self.publisher_persons.get_person(key=deputy_key)
         self.new_concept = new_concept
         self.validFrom = validFrom
+        self.version = version or '1.0.0'  # Use provided version or default to 1.0.0
 
         # Create an instance of the class
         self.api_handler = I14yApiClient()
@@ -341,7 +342,7 @@ class AD_csv_to_i14y_json():
                 "responsibleDeputy": self.deputy_person,
                 "themes": [],
                 "validFrom": self.concept.get_validFrom(),
-                "version": Config.DEFAULT_VERSION
+                "version": self.version  # Use the version from transformer instance
             }
         }    
         return output
@@ -692,18 +693,20 @@ def main():
         force=True
     )
 
-    if len(sys.argv) < 5:
-        print("Usage: python script_name.py <responsible_key> <deputy_key> <input_folder_path> <output_folder_path> <Date_Valid_From> [-n]")
+    if len(sys.argv) < 6:
+        print("Usage: python script_name.py <responsible_key> <deputy_key> <input_folder_path> <output_folder_path> <Date_Valid_From> <Version> [-n]")
         print("  <Date_Valid_From>   → date from which the concept is valid. needs to be in 'YYYY-MM-DD' format")
-        print("  -n   → create new concept otherwise it will create a new version of existing concept")
+        print("  <Version>           → version number for the concept (e.g., 2.0.3)")
+        print("  -n                  → create new concept otherwise it will create a new version of existing concept")
         sys.exit(1)
 
     responsible_key = sys.argv[1]  # First argument (e.g., PGR)
     deputy_key = sys.argv[2]  # Second argument (e.g., SNE)
-    input_folder = sys.argv[3]  # Third argument (pass your concept object)
-    output_folder = sys.argv[4]  # Fourth argument (pass your codeListEntries object)
+    input_folder = sys.argv[3]  # Third argument (input folder path)
+    output_folder = sys.argv[4]  # Fourth argument (output folder path)
     date_valid_from = sys.argv[5]  # Fifth argument (date from which the concept is valid)
-    new = len(sys.argv) > 6 and sys.argv[6] == "-n"  # Will be True if -n is present, False otherwise
+    version = sys.argv[6]  # Sixth argument (version number)
+    new = len(sys.argv) > 7 and sys.argv[7] == "-n"  # Will be True if -n is present, False otherwise
 
     os.makedirs(output_folder, exist_ok=True)
     output_folder_concepts = os.path.join(output_folder, "Concepts")
@@ -719,8 +722,8 @@ def main():
             input_file = os.path.join(input_folder, filename)
             concept_name = process_filename(filename)
             
-            # Create transformer instance
-            transformer = AD_csv_to_i14y_json(input_file, "", concept_name, responsible_key, deputy_key, date_valid_from, new)
+            # Create transformer instance with version
+            transformer = AD_csv_to_i14y_json(input_file, "", concept_name, responsible_key, deputy_key, date_valid_from, new, version)
             
             # Process the file to get the concept data
             if filename.endswith('.csv'):

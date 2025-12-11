@@ -99,13 +99,14 @@ def transform_files():
         responsible_key = request.form.get('responsibleKey')
         deputy_key = request.form.get('deputyKey')
         date_valid_from = request.form.get('dateValidFrom')
+        version = request.form.get('version', '1.0.0')  # Get version, default to 1.0.0
         create_new = request.form.get('createNew') == 'true'
         
         # Validate required fields
-        if not all([responsible_key, deputy_key, date_valid_from]):
+        if not all([responsible_key, deputy_key, date_valid_from, version]):
             return jsonify({
                 'success': False,
-                'error': 'Missing required fields: responsible_key, deputy_key, or date_valid_from'
+                'error': 'Missing required fields: responsible_key, deputy_key, date_valid_from, or version'
             }), 400
         
         # Handle file uploads
@@ -150,7 +151,8 @@ def transform_files():
                 deputy_key,
                 UPLOAD_FOLDER,
                 output_folder,
-                date_valid_from
+                date_valid_from,
+                version  # Add version parameter
             ]
             
             if create_new:
@@ -314,6 +316,60 @@ def clear_log():
     with open(log_path, 'w') as f:
         f.write('')
     return 'Log cleared'
+
+@app.route('/api/get-concept-version', methods=['POST'])
+def get_concept_version():
+    """Get current version of a concept by name"""
+    try:
+        data = request.get_json()
+        concept_name = data.get('conceptName')
+        
+        if not concept_name:
+            return jsonify({'success': False, 'error': 'No concept name provided'}), 400
+        
+        logger.info(f"Fetching version for concept: {concept_name}")
+        
+        # Use I14Y API to get concept info
+        result = run_python_script('I14Y_API_handling.py', ['-gec', 'temp_concepts.json'])
+        
+        if result['success']:
+            # Load the temp file and find matching concept
+            try:
+                if not os.path.exists('temp_concepts.json'):
+                    logger.warning("temp_concepts.json was not created")
+                    return jsonify({'success': False, 'error': 'Concepts file not created'})
+                
+                with open('temp_concepts.json', 'r', encoding='utf-8') as f:
+                    concepts_data = json.load(f)
+                    
+                # Search for concept by name
+                if concepts_data and 'data' in concepts_data:
+                    for concept in concepts_data['data']:
+                        # Check if name matches in any language
+                        names = concept.get('name', {})
+                        if concept_name in names.values():
+                            version = concept.get('version', '1.0.0')
+                            if os.path.exists('temp_concepts.json'):
+                                os.remove('temp_concepts.json')  # Clean up
+                            logger.info(f"Found version {version} for {concept_name}")
+                            return jsonify({'success': True, 'version': version})
+                
+                if os.path.exists('temp_concepts.json'):
+                    os.remove('temp_concepts.json')  # Clean up
+                logger.info(f"Concept {concept_name} not found in I14Y")
+                return jsonify({'success': False, 'message': 'Concept not found'})
+            except Exception as e:
+                logger.error(f"Error parsing concepts: {str(e)}")
+                if os.path.exists('temp_concepts.json'):
+                    os.remove('temp_concepts.json')
+                return jsonify({'success': False, 'error': f'Error parsing concepts: {str(e)}'})
+        else:
+            logger.error(f"Failed to fetch concepts: {result.get('stderr', 'Unknown error')}")
+            return jsonify({'success': False, 'error': 'Failed to fetch concepts from I14Y API'})
+            
+    except Exception as e:
+        logger.error(f"Error in get_concept_version: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/download/<path:filepath>')
 def download_file(filepath):

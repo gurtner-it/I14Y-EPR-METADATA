@@ -91,7 +91,7 @@ DEFAULT_DEPUTY_SHORT_NAME=SNE
 PUBLISHER_IDENTIFIER=CH_eHealth
 PUBLISHER_NAME=eHealth Suisse
 
-DEFAULT_VERSION=2.0.2
+# Note: Version numbers are fetched from I14Y API or default to 1.0.0
 DEFAULT_PUBLICATION_LEVEL=Internal
 DEFAULT_CONCEPT_TYPE=CodeList
 DEFAULT_VALUE_TYPE=String
@@ -129,10 +129,10 @@ Transform XML files into I14Y-compliant JSON format. This automatically creates 
 ### Via Command Line:
 ```bash
 # Process files and create new concept versions (existing concepts)
-python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-01
+python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-01 2.0.3
 
 # Create completely new concepts (with -n flag)
-python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-01 -n
+python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-01 1.0.0 -n
 ```
 
 ### Parameters:
@@ -141,7 +141,21 @@ python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-
 - `input_folder`: Path to XML files
 - `output_folder`: Path for JSON output
 - `valid_from_date`: Validity start date (YYYY-MM-DD)
+- `version`: Version number (e.g., 2.0.3)
 - `-n`: Optional flag to create new concepts (if omitted, creates new versions of existing concepts)
+
+### Version Management:
+**Important:** Always increment the version number when updating existing concepts!
+
+1. **For new concepts** (with `-n` flag): Start with `1.0.0`
+2. **For existing concepts**: 
+   - Get current version from I14Y API
+   - Increment appropriately:
+     - Major changes: `2.0.0` → `3.0.0`
+     - Minor updates: `2.0.0` → `2.1.0`
+     - Patches: `2.0.0` → `2.0.1`
+
+**GUI automatically fetches the current version from I14Y** when you select XML files, making version management easier.
 
 ### Output:
 - **Concepts**: `AD_VS/Transformed/Concepts/` - Concept definition files
@@ -261,6 +275,33 @@ Open browser to: `http://localhost:8080` (or check `http://localhost:5001` for b
 ---
 
 # 📝 Important Notes
+
+## Version Management:
+**CRITICAL: Always use proper version numbers!**
+
+### Version Numbering Rules:
+- Use semantic versioning: `MAJOR.MINOR.PATCH` (e.g., `2.0.3`)
+- **New concepts**: Start with `1.0.0`
+- **Updating existing concepts**: Always increment the version
+  - **Major changes** (breaking changes): `2.0.0` → `3.0.0`
+  - **Minor changes** (new features): `2.0.0` → `2.1.0`
+  - **Patch** (bug fixes, small updates): `2.0.0` → `2.0.1`
+
+### How Versioning Works:
+1. **GUI (Recommended)**: 
+   - Select XML files → System automatically fetches current version from I14Y API
+   - You see the current version and must increment it manually
+   - If concept doesn't exist or API fails: defaults to `1.0.0`
+
+2. **Command Line**:
+   - Manually check current version: `python I14Y_API_handling.py -gci <OID>`
+   - Provide the new version as 6th parameter
+   - Example: `python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-01 2.0.3`
+
+### Important:
+- **Never reuse version numbers** - each upload must have a unique version
+- **No hardcoded defaults** - Version is always fetched from API or set to `1.0.0`
+- **Backend must be running** for automatic version fetching in GUI
 
 ## Transformation Notes:
 - Processes files matching `VS_<name>_(...)` or `VS <name>_(...)`
