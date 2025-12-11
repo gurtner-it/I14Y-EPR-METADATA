@@ -41,7 +41,7 @@ Log into the I14Y web platform to verify the status and content of uploaded conc
 1. Clone the repository:
 ```bash
 git clone https://github.com/ehealthsuisse/I14Y-EPR-METADATA.git
-cd EPD_Metadata
+cd I14Y-EPR-METADATA
 ```
 
 2. Create virtual environment:

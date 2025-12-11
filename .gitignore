@@ -33,7 +33,7 @@ htmlcov/
 .tox/
 .nox/
 .pytest_cache/
-*.txt
+AD_VS/api_errors_log.txt
 AD_VS/Transformed
 *.json
 AD_VS
