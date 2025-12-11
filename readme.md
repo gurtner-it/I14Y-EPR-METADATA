@@ -32,7 +32,7 @@ Log into the I14Y web platform to verify the status and content of uploaded conc
 
 ## Prerequisites
 
-- Python 3.1+
+- Python 3.7+
 - Valid I14Y API credentials
 - Access to I14Y web platform for manual verification
 
@@ -128,12 +128,11 @@ Transform XML files into I14Y-compliant JSON format. This automatically creates 
 
 ### Via Command Line:
 ```bash
-# Create new concepts
-python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-01 -n
-
-# Create codelists
+# Process files and create new concept versions (existing concepts)
 python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-01
 
+# Create completely new concepts (with -n flag)
+python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-01 -n
 ```
 
 ### Parameters:
@@ -142,7 +141,7 @@ python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-
 - `input_folder`: Path to XML files
 - `output_folder`: Path for JSON output
 - `valid_from_date`: Validity start date (YYYY-MM-DD)
-- `-n`: Optional flag to create new concepts
+- `-n`: Optional flag to create new concepts (if omitted, creates new versions of existing concepts)
 
 ### Output:
 - **Concepts**: `AD_VS/Transformed/Concepts/` - Concept definition files
@@ -178,10 +177,10 @@ Update concept status to make them officially recorded.
 
 ```bash
 # Set single concept to recorded status
-python I14Y_API_handling.py -sr <concept-identifier>
+python I14Y_API_handling.py -srs Recorded <concept-identifier>
 
-# Set multiple concepts to recorded status
-python I14Y_API_handling.py -smr AD_VS/Transformed/Concepts/
+# Note: For batch operations, you'll need to script individual -srs calls
+# as there is no batch method for setting registration status
 ```
 
 ## Step 5: Manual Verification via I14Y GUI
@@ -212,6 +211,7 @@ For a user-friendly interface, you can use the included web application:
 ```bash
 python app.py
 ```
+The backend will run on `http://localhost:5001`
 
 ## 2. Serve Frontend:
 ```bash
@@ -219,7 +219,7 @@ python -m http.server 8080
 ```
 
 ## 3. Access Application:
-Open browser to: `http://localhost:8080`
+Open browser to: `http://localhost:8080` (or check `http://localhost:5001` for backend status)
 
 ---
 
@@ -241,16 +241,20 @@ Open browser to: `http://localhost:8080`
 # Updates
 -ucl <file> <uuid>  # Update codelist (delete old + post new)
 -dcl <uuid>         # Delete all codelist entries
+-dc <uuid>          # Delete concept
 
-# Status Management
--sr <uuid>          # Set single concept to recorded
--smr <directory>    # Set multiple concepts to recorded
+# Status & Publication Management
+-srs <status> <uuid>  # Set registration status (e.g., Recorded, Standard)
+-spl <level> <uuid>   # Set publication level (e.g., Internal, Public)
 ```
 
 ## Retrieval Operations:
 ```bash
--gc <uuid>          # Get concept details
--gcl <uuid>         # Get codelist entries
+-gc [filters]       # Get concepts with filters (--publisher, --status, etc.)
+-gec [output_file]  # Get all EPD concepts
+-gci <OID> [file]   # Get concept by identifier (OID)
+-gce <uuid>         # Get codelist entries
+-ucm                # Update codelist mapping from API
 ```
 
 ---
@@ -274,6 +278,7 @@ Open browser to: `http://localhost:8080`
 - **Step 2** (concept upload) must succeed before Step 3 (codelist upload)
 - **Step 4** can only be performed after successful upload
 - **Step 5** provides final verification and is mandatory for production
+- The `-n` flag in Step 1 creates completely new concepts; without it, new versions of existing concepts are created
 
 ## Limitations:
 - Locked concepts can only be deleted via I14Y official support
@@ -285,10 +290,12 @@ Open browser to: `http://localhost:8080`
 # 🆘 Troubleshooting
 
 ## Common Issues:
-1. **Authentication failures**: Check `.env` credentials
+1. **Authentication failures**: Check `.env` credentials and ensure API_MODE is set correctly (PROD or ABN)
 2. **Concept not found**: Ensure Step 2 completed successfully before Step 3
 3. **Permission denied**: Verify API permissions for your environment
 4. **Status update failed**: Check if concept is in correct state for status change
+5. **Flask import errors**: Ensure Flask and Flask-Cors are installed (`pip install -r requirements.txt`)
+6. **Wrong environment**: Check `.env` file - ensure API_MODE is uncommented for desired environment (PROD or ABN)
 
 ## Support:
 - Check `AD_VS/api_errors_log.txt` for detailed error information
