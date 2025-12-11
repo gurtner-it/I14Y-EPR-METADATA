@@ -302,6 +302,10 @@ class I14yApiClient:
             return self.auth_token
 
         try:
+            logging.info(f"🔐 Attempting authentication to: {Config.TOKEN_URL}")
+            logging.info(f"🔐 Using CLIENT_ID: {Config.CLIENT_ID}")
+            logging.info(f"🔐 CLIENT_SECRET length: {len(Config.CLIENT_SECRET) if Config.CLIENT_SECRET else 0} characters")
+            
             response = requests.post(
                 Config.TOKEN_URL,
                 data={'grant_type': 'client_credentials'},
@@ -319,9 +323,18 @@ class I14yApiClient:
             logging.info(f"<token_start>Bearer {token}<token_end>")
             self.token_expiry = time.time() + expires_in - 60  # refresh 1 min early
             
-            logging.info("Access token obtained successfully")
+            logging.info("✅ Access token obtained successfully")
             return self.auth_token
             
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"Authentication failed with status {e.response.status_code}"
+            if e.response.status_code == 401:
+                error_msg += "\n❌ 401 Unauthorized: Check your CLIENT_ID and CLIENT_SECRET in .env file"
+                error_msg += f"\n   Current CLIENT_ID: {Config.CLIENT_ID}"
+                error_msg += f"\n   CLIENT_SECRET length: {len(Config.CLIENT_SECRET) if Config.CLIENT_SECRET else 0}"
+                error_msg += "\n   Make sure .env file is in the project root and properly formatted"
+            logging.error(error_msg)
+            raise I14yApiError(error_msg)
         except Exception as e:
             logging.error(f"Failed to obtain access token: {e}")
             raise I14yApiError(f"Authentication failed: {e}")
