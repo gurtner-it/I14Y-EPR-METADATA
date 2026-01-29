@@ -412,3 +412,8 @@ Open browser to: `http://localhost:8080` (or check `http://localhost:5001` for b
 - Check `api_errors_log.txt` for detailed error information
 - Verify environment configuration in `.env`
 - Ensure proper sequence of workflow steps
+
+## Todo's:
+- Handle versioning in transormation for multiple files
+- Clarify why classcode concept with new version can't be uploaded
+- Show errors more clear & structured
