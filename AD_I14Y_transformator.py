@@ -754,7 +754,7 @@ def main():
             transformer.write_to_json()
             print(f"Transformed {filename} -> {new_filename} \n ---------------------------------------------------------------")
     
-    print(f"🎉 All transformations complete. Output files written to: {output_folder}")
+    print(f"Output files written to: {output_folder}")
 
 if __name__ == "__main__":
     main()

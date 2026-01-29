@@ -67,13 +67,116 @@ async function loadTokenFromLog() {
         if (match && match[1]) {
             const token = match[1].trim();
             document.getElementById('tokenInput').value = token;
-            console.log('Token loaded:', token);
+            console.log('✅ Token loaded from log');
         } else {
             console.warn('Token not found in log');
         }
     } catch (err) {
         console.error('Failed to load token from log:', err);
     }
+}
+
+function extractAndDisplayToken(logText) {
+    try {
+        // Extract token between markers
+        const match = logText.match(/<token_start>\s*(.*?)\s*<token_end>/);
+        if (match && match[1]) {
+            const token = match[1].trim();
+            document.getElementById('tokenInput').value = token;
+            console.log('✅ Token extracted and displayed');
+        }
+    } catch (err) {
+        console.error('Failed to extract token:', err);
+    }
+}
+
+function parseApiError(errorText) {
+    try {
+        // Extract the main error message after "failed with status code"
+        const failedMatch = errorText.match(/❌\s+(.+?)\s+failed with status code/);
+        const operation = failedMatch ? failedMatch[1] : 'Operation';
+        
+        // Extract status code
+        const statusMatch = errorText.match(/Status:\s+(\d+)/);
+        const statusCode = statusMatch ? statusMatch[1] : 'Unknown';
+        
+        // Extract JSON response - use [\s\S] to match across newlines
+        const jsonMatch = errorText.match(/Response:\s*\n({[\s\S]*?})\s*(?:More technical|--)/);
+        let errorDetail = '';
+        let errorTitle = '';
+        
+        if (jsonMatch) {
+            try {
+                const jsonResponse = JSON.parse(jsonMatch[1]);
+                errorDetail = jsonResponse.detail || '';
+                errorTitle = jsonResponse.title || '';
+            } catch (e) {
+                console.warn('JSON parsing failed, using regex fallback', e);
+                // JSON parsing failed, try to extract detail directly
+                const detailMatch = errorText.match(/"detail"\s*:\s*"([^"]+)"/);
+                if (detailMatch) {
+                    errorDetail = detailMatch[1];
+                }
+                const titleMatch = errorText.match(/"title"\s*:\s*"([^"]+)"/);
+                if (titleMatch) {
+                    errorTitle = titleMatch[1];
+                }
+            }
+        } else {
+            // Try regex fallback if JSON block not found
+            const detailMatch = errorText.match(/"detail"\s*:\s*"([^"]+)"/);
+            if (detailMatch) {
+                errorDetail = detailMatch[1];
+            }
+            const titleMatch = errorText.match(/"title"\s*:\s*"([^"]+)"/);
+            if (titleMatch) {
+                errorTitle = titleMatch[1];
+            }
+        }
+        
+        return {
+            operation,
+            statusCode,
+            errorTitle,
+            errorDetail,
+            fullError: errorText
+        };
+    } catch (err) {
+        console.error('Failed to parse error:', err);
+        return {
+            operation: 'Operation',
+            statusCode: 'Unknown',
+            errorTitle: '',
+            errorDetail: '',
+            fullError: errorText
+        };
+    }
+}
+
+function formatApiError(errorText) {
+    const parsed = parseApiError(errorText);
+    
+    // If we have extracted error details, format them nicely
+    if (parsed.errorDetail) {
+        return `❌ ❌ ❌ API ERROR ❌ ❌ ❌
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 ERROR SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  ${parsed.errorDetail}
+
+📋 Operation: ${parsed.operation}
+🔢 Status Code: ${parsed.statusCode}${parsed.errorTitle ? '\n📌 Error Type: ' + parsed.errorTitle : ''}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 FULL ERROR LOG
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${parsed.fullError}`;
+    }
+    
+    // If parsing failed, return original with basic formatting
+    return `❌ ❌ ❌ API ERROR ❌ ❌ ❌\n\n${errorText}`;
 }
 
 
@@ -260,6 +363,7 @@ function getParametersForMethod(method) {
             { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' }
         ],
         '-spl': [
+            { name: 'filePath', label: 'JSON File Path (optional - to auto-extract Concept ID)', type: 'file', required: false, accept: '.json' },
             { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' },
             { name: 'publicationLevel', label: 'level', type: 'select', required: false, options: [
                 { value: 'Internal', label: 'Internal' },
@@ -267,13 +371,14 @@ function getParametersForMethod(method) {
             ]}
         ],
         '-srs': [
+            { name: 'filePath', label: 'JSON File Path (optional - to auto-extract Concept ID)', type: 'file', required: false, accept: '.json' },
             { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' },
             { name: 'registrationStatus', label: 'Status', type: 'select', required: false, options: [
                 { value: '', label: '--- Most important:' },
-                { value: 'Recorded', label: 'Recorded (proprietary code)' },
+                { value: 'Recorded', label: 'Recorded (normally used)' },
                 { value: 'Retired', label: 'Retired' },
-                { value: 'Standard', label: 'Standard (e.g. eCH or a defined standard) (CAVE: Can only be set by I14Y support)' },
                 { value: '', label: '--- Not relevant:' },
+                { value: 'Standard', label: 'Standard (e.g. eCH or a defined standard) (CAVE: Can only be set by I14Y support)' },
                 { value: 'Incomplete', label: 'Incomplete' },
                 { value: 'Candidate', label: 'Candidate' },
                 { value: 'Qualified', label: 'Qualified' },
@@ -365,22 +470,44 @@ document.getElementById('transformForm').addEventListener('submit', async functi
         const result = await response.json();
 
         if (result.success) {
-            const output = `✅ Transformation completed successfully!
+            // Extract token and populate token field
+            extractAndDisplayToken(result.stdout);
+            
+            // Count files in each category
+            const conceptFiles = result.output_files.filter(f => f.includes('Concepts')).length;
+            const codelistFiles = result.output_files.filter(f => f.includes('Codelists')).length;
+            
+            const output = `✅ ✅ ✅ TRANSFORMATION SUCCESSFUL ✅ ✅ ✅
 
-📁 Files processed:
-- ${result.input_files.join('\n- ')}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📄 Output files:
-- ${result.output_files.join('\n- ')}
+✔️  Input files processed: ${result.input_files.length}
+   ${result.input_files.map(f => `   • ${f}`).join('\n')}
 
-📂 Output folder: 
-${result.output_folder}
+✔️  Concept files created: ${conceptFiles}
+✔️  Codelist files created: ${codelistFiles}
+✔️  Total output files: ${result.output_files.length}
 
-Details:
-${result.stdout}`;
+📂 Output location: ${result.output_folder}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 DETAILED LOG
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${result.stdout}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ All files transformed successfully!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
             showOutput(output);
         } else {
-            showOutput(`❌ Transformation failed: ${result.error}\n\n${result.stderr || ''}`, true);
+            // Check if error contains API error patterns and format accordingly
+            const errorMessage = result.stderr || result.stdout || result.error || '';
+            const formattedError = errorMessage.includes('failed with status code') 
+                ? formatApiError(errorMessage)
+                : `❌ ❌ ❌ TRANSFORMATION FAILED ❌ ❌ ❌\n\n${result.error}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nERROR DETAILS:\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${errorMessage}`;
+            showOutput(formattedError, true);
         }
     } catch (error) {
         showOutput(`❌ Network error: ${error.message}\n\nMake sure the Flask backend is running on http://localhost:5001`, true);
@@ -414,7 +541,14 @@ document.getElementById('apiForm').addEventListener('submit', async function(e) 
             // File exists → send FormData
             const fileFormData = new FormData();
             fileFormData.append('apiMethod', data.apiMethod);
-            if (data.conceptId) fileFormData.append('conceptId', data.conceptId);
+            
+            // Add all form fields to FormData
+            for (let [key, value] of Object.entries(data)) {
+                if (key !== 'apiMethod' && value) {
+                    fileFormData.append(key, value);
+                }
+            }
+            
             fileFormData.append('filePath', fileInput.files[0]);
 
             response = await fetch('http://localhost:5001/api/execute', {
@@ -433,17 +567,31 @@ document.getElementById('apiForm').addEventListener('submit', async function(e) 
         const result = await response.json();
 
         if (result.success) {
-            const output = `API call executed (see logs below for more details)
+            // Extract token and populate token field
+            extractAndDisplayToken(result.stdout);
             
+            const output = `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 OPERATION DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 🔧 Method: ${data.apiMethod}
 ${Object.entries(data).filter(([key]) => key !== 'apiMethod').map(([key, value]) => `📋 ${key}: ${value}`).join('\n')}
 
-${result.stdout}`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 DETAILED LOG
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${result.stdout}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
             showOutput(output);
-
-            await loadTokenFromLog();
         } else {
-            showOutput(`❌ API call failed: ${result.error}\n\n${result.stdout || ''}`, true);
+            // Format API errors to highlight the most important information
+            const errorMessage = result.stdout || result.error || '';
+            const formattedError = errorMessage.includes('failed with status code') 
+                ? formatApiError(errorMessage)
+                : `❌ ❌ ❌ API CALL FAILED ❌ ❌ ❌\n\n${result.error}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nERROR DETAILS:\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${errorMessage}`;
+            showOutput(formattedError, true);
         }
     } catch (error) {
         showOutput(`❌ Network error: ${error.message}\n\nMake sure the Flask backend is running on http://localhost:5001`, true);

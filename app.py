@@ -258,17 +258,19 @@ def execute_api_command():
                 args.append(data['outputFile'])
         
         elif method == '-srs':
-            # Get concepts with filters
-            if 'registrationStatus' in data:
+            # Set registration status - requires: status, concept_id
+            # Handle optional file upload (just for convenience, not sent to API)
+            if 'registrationStatus' in data and data['registrationStatus']:
                 args.append(str(data['registrationStatus']))
-            if 'conceptId' in data:
+            if 'conceptId' in data and data['conceptId']:
                 args.append(str(data['conceptId']))
 
         elif method == '-spl':
-            # Get concepts with filters
-            if 'publicationLevel' in data:
+            # Set publication level - requires: level, concept_id
+            # Handle optional file upload (just for convenience, not sent to API)
+            if 'publicationLevel' in data and data['publicationLevel']:
                 args.append(str(data['publicationLevel']))
-            if 'conceptId' in data:
+            if 'conceptId' in data and data['conceptId']:
                 args.append(str(data['conceptId']))
 
         elif method == '-gc':

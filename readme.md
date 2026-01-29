@@ -122,6 +122,19 @@ project/
 
 # 🔄 Step-by-Step Workflow
 
+## Workflow Overview
+
+**Important:** Always test in ABN environment first (Steps 1-5), then deploy to PROD (repeat Steps 1-5).
+
+- **Part A: Testing in ABN** - Steps 1-5 in ABN environment
+- **Part B: Production Deployment** - Steps 1-5 in PROD environment
+
+---
+
+## Part A: Testing in ABN Environment
+
+Set `API_MODE=ABN` in your `.env` file before starting.
+
 ## Step 1: Transform XML Files to JSON
 
 Transform XML files into I14Y-compliant JSON format. This automatically creates both concept definitions and code lists.
@@ -161,9 +174,9 @@ python AD_I14Y_transformator.py PGR SNE ./AD_VS/XML ./AD_VS/Transformed 2026-06-
 - **Concepts**: `AD_VS/Transformed/Concepts/` - Concept definition files
 - **Codelists**: `AD_VS/Transformed/Codelists/` - Code list entry files
 
-## Step 2: Upload Concept Versions
+## Step 2: Upload Concept Versions (ABN)
 
-Upload the transformed concept definitions to I14Y.
+Upload the transformed concept definitions to I14Y **ABN environment**.
 
 ```bash
 # Upload single concept
@@ -173,9 +186,9 @@ python I14Y_API_handling.py -pc AD_VS/Transformed/Concepts/concept-file.json
 python I14Y_API_handling.py -pmc AD_VS/Transformed/Concepts/
 ```
 
-## Step 3: Upload Code Lists
+## Step 3: Upload Code Lists (ABN)
 
-Upload code list entries to the previously created concepts.
+Upload code list entries to the previously created concepts in **ABN environment**.
 
 ```bash
 # Upload single codelist
@@ -185,9 +198,9 @@ python I14Y_API_handling.py -pcl AD_VS/Transformed/Codelists/codelist-file.json 
 python I14Y_API_handling.py -pmcl AD_VS/Transformed/Codelists/
 ```
 
-## Step 4: Set Registration Status to "Recorded"
+## Step 4: Set Registration Status to "Recorded" (ABN)
 
-Update concept status to make them officially recorded.
+Update concept status to make them officially recorded in **ABN environment**.
 
 ```bash
 # Set single concept to recorded status
@@ -197,23 +210,63 @@ python I14Y_API_handling.py -srs Recorded <concept-identifier>
 # as there is no batch method for setting registration status
 ```
 
-## Step 5: Manual Verification via I14Y GUI
+**Important:** When you set the publication level or registration status via API, these changes are submitted as **proposals**. A **data steward** must review and approve these proposals on the I14Y platform before they become active.
+
+### Data Steward Approval Process:
+1. After setting status/publication level via API, the proposal is created
+2. A data steward logs into the I14Y platform
+3. The steward reviews the proposal in the I14Y management interface
+4. The steward can either:
+   - ✅ **Accept** the proposal - Status/publication level becomes active
+   - ❌ **Reject** the proposal - Status/publication level remains unchanged
+
+## Step 5: Manual Verification via I14Y GUI (ABN)
 
 1. **Login to I14Y Platform:**
    - **ABN Environment**: https://www.i14y-a.admin.ch
-   - **PROD Environment**: https://www.i14y.admin.ch
 
 2. **Navigate to Your Concepts:**
    - Go to "My Concepts" or search for your uploaded concepts
-   - Verify concept status shows as "Recorded"
+   - Verify concept status shows as "Recorded" (after data steward approval)
    - Check concept content and code list entries
    - Confirm multilingual content is displayed correctly
 
-3. **Verification Checklist:**
-   - ✅ Concept status = "Recorded"
+3. **Data Steward Actions (if you have steward permissions):**
+   - Review pending proposals for publication level changes
+   - Review pending proposals for registration status changes
+   - Accept or reject proposals as appropriate
+   - Note: Only approved proposals will be reflected in the concept's active status
+
+4. **Verification Checklist:**
+   - ✅ Concept status = "Recorded" (approved by data steward)
+   - ✅ Publication level is set correctly (approved by data steward)
    - ✅ Code list entries are present
    - ✅ Multilingual names display correctly
    - ✅ Metadata (responsible persons, validity dates) is accurate
+
+---
+
+## Part B: Production Deployment
+
+**Once ABN testing is complete and all concepts are verified:**
+
+### Step 6: Deploy to PROD Environment
+
+1. **Update Configuration:**
+   - Change `.env` file: `API_MODE=PROD`
+   - Restart backend if running
+
+2. **Repeat Steps 1-5 in PROD:**
+   - Step 1: Transform XML files (if needed, or reuse ABN transformations)
+   - Step 2: Upload concepts to PROD
+   - Step 3: Upload code lists to PROD
+   - Step 4: Set registration status in PROD
+   - Step 5: Verify in PROD I14Y platform: https://www.i14y.admin.ch
+
+3. **Final Verification:**
+   - Verify all concepts are correctly deployed in PROD
+   - Ensure data steward has approved proposals in PROD
+   - Confirm public accessibility if publication level is "Public"
 
 ---
 
@@ -221,19 +274,35 @@ python I14Y_API_handling.py -srs Recorded <concept-identifier>
 
 For a user-friendly interface, you can use the included web application:
 
-## 1. Start Flask Backend:
+## Quick Start (Recommended):
+Use the provided shell script to start both servers at once:
+```bash
+./start_gui.sh
+```
+
+This will:
+- Activate the virtual environment (if exists)
+- Start the Flask backend on `http://localhost:5001`
+- Start the frontend server on `http://localhost:8080`
+- Handle cleanup when you press Ctrl+C
+
+Then open your browser to: `http://localhost:8080`
+
+## Manual Start (Alternative):
+
+### 1. Start Flask Backend:
 ```bash
 source .venv/bin/activate  # (optional) On Windows: .venv\Scripts\activate
 python app.py
 ```
 The backend will run on `http://localhost:5001`
 
-## 2. Serve Frontend:
+### 2. Serve Frontend:
 ```bash
 python -m http.server 8080
 ```
 
-## 3. Access Application:
+### 3. Access Application:
 Open browser to: `http://localhost:8080` (or check `http://localhost:5001` for backend status)
 
 ---

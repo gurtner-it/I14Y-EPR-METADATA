@@ -11,18 +11,6 @@
 </head>
 <body>
     <div class="container">
-        <!-- Modern Toggle Switch -->
-        <div class="env-toggle">
-            <input type="radio" id="env-abn" name="environment" value="ABN" checked>
-            <label for="env-abn">ABN</label>
-
-            <input type="radio" id="env-prod" name="environment" value="PROD">
-            <label for="env-prod">PROD</label>
-
-            <span class="toggle-bg"></span>
-        </div>
-
-
         <div class="header">   
 
             <h1>I14Y Transformer & API</h1>
@@ -148,21 +136,33 @@
         <h3>🚀 Complete Workflow (GUI)</h3>
         <p>
         Follow this step-by-step process to transform XML code lists and upload them to I14Y. 
-        Always start in <b>ABN (test)</b> mode and switch to <b>PROD</b> once everything works.
+        <strong>First test in ABN (Steps 1-5), then deploy to PROD (Steps 1-6).</strong>
         </p>
     </div>
 
-    <ol>
+    <div class="info-box" style="background: #e8f5e9; border-left: 4px solid #4caf50;">
+        <h4>💡 Quick Start</h4>
+        <p><strong>Run the GUI with one command:</strong></p>
+        <pre style="background: #fff; padding: 10px; border-radius: 4px; margin: 10px 0;">./start_gui.sh</pre>
+        <p>This starts both the Flask backend (port 5001) and frontend server (port 8080).<br>
+        Then open your browser to <code>http://localhost:8080</code></p>
+    </div>
+
+    <div class="info-box" style="background: #fff8e1; border-left: 4px solid #ff9800;">
+        <h3>🧪 Part A: Testing in ABN Environment</h3>
+        <p>Set <code>API_MODE=ABN</code> in your <code>.env</code> file before starting.</p>
+    </div>
+
+    <ul style="list-style-type: none; padding-left: 0;">
         <li>
-        <strong>Check your <code>.env</code> configuration</strong><br>
-        - <code>API_MODE=ABN</code> (test first)<br>
-        - <code>PROD</code> only once verified<br>
+        <strong>Step 0: Check your <code>.env</code> configuration</strong><br>
+        - Set <code>API_MODE=ABN</code> for testing<br>
         - Fill in your <code>CLIENT_ID</code>, <code>CLIENT_SECRET</code>, 
             and token URLs (see README.md for exact variables).
         </li>
 
         <li>
-        <strong>Step 1: Transform XML → JSON</strong><br>
+        <strong>Step 1: Transform XML → JSON</strong> <span style="background: #fff8e1; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">🧪 ABN</span><br>
         In the GUI, choose the <b>Transform Files</b> tab.  
         Your XML files from <code>AD_VS/XML</code> will be converted into I14Y-compliant JSON 
         and saved under <code>AD_VS/Transformed/Concepts</code> and <code>AD_VS/Transformed/Codelists</code>.
@@ -178,22 +178,56 @@
         </li>
 
         <li>
-        <strong>Step 2: Upload Concept Versions</strong><br>
+        <strong>Step 2: Upload Concept Versions</strong> <span style="background: #fff8e1; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">🧪 ABN</span><br>
         In the GUI, select <b>Post Concept</b>.  
         Use the transformed concept JSON files from <code>AD_VS/Transformed/Concepts</code> as input.  
         This creates new concept versions in the chosen environment (ABN or PROD).
         </li>
 
         <li>
-        <strong>Step 3: Upload Code Lists</strong><br>
+        <strong>Step 3: Upload Code Lists</strong> <span style="background: #fff8e1; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">🧪 ABN</span><br>
         In the GUI, select <b>Post Codelist</b>.  
         Use the transformed codelist JSON files from <code>AD_VS/Transformed/Codelists</code> as input.  
         This adds code list entries to the previously uploaded concepts.
         </li>
+    </ul>
+
+    <div class="info-box" style="background: #e8f4f8; border-left: 4px solid #2196f3;">
+        <h3>🚀 Part B: Deploy to PROD Environment</h3>
+        <p>Once ABN testing is complete and verified, set <code>API_MODE=PROD</code> in <code>.env</code> and restart the backend.</p>
+    </div>
+
+    <ul style="list-style-type: none; padding-left: 0;">
+        <li>
+        <strong>Step 0: Update Configuration</strong> <span style="background: #e8f4f8; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">🚀 PROD</span><br>
+        <ol type="a" style="margin-top: 10px;">
+            <li>Update your <code>.env</code> file: <code>API_MODE=PROD</code></li>
+            <li>Restart the backend: <code>./start_gui.sh</code></li>
+        </ol>
+        </li>
 
         <li>
-        <strong>Step 4: Set Registration Status to "Recorded"</strong><br>
-        Still in the GUI, choose <b>Set Registration Status</b> and change to <code>Recorded</code>.
+        <strong>Step 1: Transform XML → JSON</strong> <span style="background: #e8f4f8; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">🚀 PROD</span><br>
+        Repeat the transformation (don't reuse ABN-generated files).
+        </li>
+
+        <li>
+        <strong>Step 2: Upload Concept Versions</strong> <span style="background: #e8f4f8; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">🚀 PROD</span><br>
+        Use <b>Post Multiple Concepts</b> to upload concepts to PROD environment.
+        </li>
+
+        <li>
+        <strong>Step 3: Upload Code Lists</strong> <span style="background: #e8f4f8; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">🚀 PROD</span><br>
+        Use <b>Post Multiple Codelists</b> to upload code lists to PROD environment.
+        </li>
+
+        <li>
+        <strong>Step 4: Set Registration Status to "Recorded" and Publication Level to "Public"</strong> <span style="background: #e8f4f8; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">🚀 PROD</span><br>
+        Use <b>Set Registration Status</b> and <b>Set Publication Level</b> in the API Operations tab.
+        <p class="hint" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin-top: 10px;">
+        ⚠️ <strong>Important:</strong> Setting publication level or registration status via API creates a <strong>proposal</strong>. 
+        A <strong>data steward</strong> must log into the I14Y platform and <strong>approve</strong> these proposals before they become active.
+        </p>
         <p class="hint">
         Common statuses: <b>Recorded</b> (official), <b>Retired</b> (obsolete). 
         <b>Standard</b> status can only be set by I14Y support.
@@ -201,21 +235,19 @@
         </li>
 
         <li>
-        <strong>Step 5: Verify via I14Y Web Platform</strong><br>
-        Open the official I14Y portal and confirm your concepts are published correctly:
-        <br>• <b>ABN:</b> <a href="https://www.i14y-a.admin.ch" target="_blank">https://www.i14y-a.admin.ch</a>
-        <br>• <b>PROD:</b> <a href="https://input.i14y.admin.ch" target="_blank">https://input.i14y.admin.ch</a>
-        <p class="hint">
-        ✅ Check: Status = "Recorded", Code lists present, Multilingual content correct
+        <strong>Step 5: Verify via I14Y Web Platform</strong> <span style="background: #e8f4f8; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">🚀 PROD</span><br>
+        Open the official I14Y PROD portal and confirm your concepts are published correctly:
+        <br>• <b>PROD:</b> <a href="https://www.i14y.admin.ch" target="_blank">https://www.i14y.admin.ch</a>
+       
+        <p class="hint" style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 10px; margin-top: 10px;">
+        ℹ️ <strong>Data Steward Actions:</strong> If you have steward permissions, review and approve/reject pending proposals for 
+        publication level and registration status changes in the I14Y management interface.
+        </p>
+         <p class="hint">
+        ✅ <strong>Check:</strong> Status = "Recorded" (after data steward approval), Code lists present, Multilingual content correct
         </p>
         </li>
-
-        <li>
-        <strong>Deploy to Production</strong><br>
-        Once everything looks correct in ABN, update your <code>.env</code> to 
-        <code>API_MODE=PROD</code> and repeat Steps 2-5.
-        </li>
-    </ol>
+    </ul>
 </div>
 
 <div id="output" class="output" style="display: none;">

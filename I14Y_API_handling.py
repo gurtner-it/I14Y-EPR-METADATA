@@ -1123,8 +1123,5 @@ def main():
         logging.error(f"Unexpected error: {e}")
         sys.exit(1)
 
-    logging.info("🎉 Script execution completed successfully.")
-
-
 if __name__ == "__main__":
     main()
