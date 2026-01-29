@@ -272,6 +272,16 @@ def execute_api_command():
                 args.append(str(data['publicationLevel']))
             if 'conceptId' in data and data['conceptId']:
                 args.append(str(data['conceptId']))
+                
+        elif method in ['-mspl', '-msrs']:
+            # Batch operations for setting status/publication level
+            # Requires: directory path and status/level
+            if 'directoryPath' in data and data['directoryPath']:
+                args.append(str(data['directoryPath']))
+            if method == '-mspl' and 'publicationLevel' in data and data['publicationLevel']:
+                args.append(str(data['publicationLevel']))
+            elif method == '-msrs' and 'registrationStatus' in data and data['registrationStatus']:
+                args.append(str(data['registrationStatus']))
 
         elif method == '-gc':
             # Get concepts with filters

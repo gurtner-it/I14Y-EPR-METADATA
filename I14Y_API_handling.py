@@ -626,6 +626,89 @@ class I14yApiClient:
                 operation_name=f"Set registration status for concept {concept_id}"
             )
 
+    def set_multiple_publication_levels(self, directory_path: str, publication_level: str) -> None:
+        """Set publication level for multiple concepts from JSON files in a directory"""
+        logging.info(f"Setting publication level '{publication_level}' for multiple concepts from directory: {directory_path}")
+        
+        # Get all JSON files from directory
+        json_files = glob.glob(os.path.join(directory_path, "*.json"))
+        
+        if not json_files:
+            logging.warning(f"No JSON files found in directory: {directory_path}")
+            return
+        
+        success_count = 0
+        fail_count = 0
+        
+        for file_path in json_files:
+            try:
+                # Extract concept ID from filename (UUID pattern)
+                filename = os.path.basename(file_path)
+                uuid_pattern = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+                match = re.search(uuid_pattern, filename)
+                
+                if match:
+                    concept_id = match.group(0)
+                    logging.info(f"Processing {filename} (ID: {concept_id})")
+                    
+                    result = self.set_publication_level(publication_level, concept_id)
+                    
+                    if result:
+                        success_count += 1
+                    else:
+                        fail_count += 1
+                else:
+                    logging.warning(f"Could not extract concept ID from filename: {filename}")
+                    fail_count += 1
+                    
+            except Exception as e:
+                logging.error(f"Error processing {file_path}: {e}")
+                fail_count += 1
+        
+        logging.info(f"Batch publication level setting completed: {success_count} succeeded, {fail_count} failed")
+
+    def set_multiple_registration_statuses(self, directory_path: str, registration_status: str) -> None:
+        """Set registration status for multiple concepts from JSON files in a directory"""
+        logging.info(f"Setting registration status '{registration_status}' for multiple concepts from directory: {directory_path}")
+        
+        # Get all JSON files from directory
+        json_files = glob.glob(os.path.join(directory_path, "*.json"))
+        
+        if not json_files:
+            logging.warning(f"No JSON files found in directory: {directory_path}")
+            return
+        
+        success_count = 0
+        fail_count = 0
+        
+        for file_path in json_files:
+            try:
+                # Extract concept ID from filename (UUID pattern)
+                filename = os.path.basename(file_path)
+                uuid_pattern = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+                match = re.search(uuid_pattern, filename)
+                
+                if match:
+                    concept_id = match.group(0)
+                    logging.info(f"Processing {filename} (ID: {concept_id})")
+                    
+                    result = self.set_registration_status(registration_status, concept_id)
+                    
+                    if result:
+                        success_count += 1
+                    else:
+                        fail_count += 1
+                else:
+                    logging.warning(f"Could not extract concept ID from filename: {filename}")
+                    fail_count += 1
+                    
+            except Exception as e:
+                logging.error(f"Error processing {file_path}: {e}")
+                fail_count += 1
+        
+        logging.info(f"Batch registration status setting completed: {success_count} succeeded, {fail_count} failed")
+
+
     def update_codelist_entries(self, file_path: str, concept_id: str) -> bool:
         """Update codelist entries by deleting existing ones and posting new ones"""
         logging.info(f"Updating codelist entries for concept {concept_id}")
@@ -962,6 +1045,8 @@ def main():
         print("\nStatus & Publication level Methods:")
         print("  -spl   → set_publication_level(publication_level, concept_id)")
         print("  -srs   → set_registration_status(registration_status, concept_id)")
+        print("  -mspl  → set_multiple_publication_levels(directory_path, publication_level)")
+        print("  -msrs  → set_multiple_registration_statuses(directory_path, registration_status)")
         print("\nGet Examples:")
         print("  python3 I14Y_API_handling.py -gec epd_concepts.json")
         print("  python3 I14Y_API_handling.py -gci 08dd632d-aca1-b77d-80c2-3e6b677753f9")
@@ -1029,6 +1114,20 @@ def main():
                     sys.exit(1)
                 registration_status, concept_id = sys.argv[2], sys.argv[3]
                 api_client.set_registration_status(registration_status, concept_id)
+
+            elif method == "-mspl":
+                if len(sys.argv) < 4:
+                    logging.error("Missing arguments: directory_path and publication_level for -mspl.")
+                    sys.exit(1)
+                directory_path, publication_level = sys.argv[2], sys.argv[3]
+                api_client.set_multiple_publication_levels(directory_path, publication_level)
+
+            elif method == "-msrs":
+                if len(sys.argv) < 4:
+                    logging.error("Missing arguments: directory_path and registration_status for -msrs.")
+                    sys.exit(1)
+                directory_path, registration_status = sys.argv[2], sys.argv[3]
+                api_client.set_multiple_registration_statuses(directory_path, registration_status)
 
             elif method == "-ucl":
                 if len(sys.argv) < 4:

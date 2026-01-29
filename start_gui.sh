@@ -21,7 +21,7 @@ sleep 2
 # Start frontend HTTP server
 echo "Starting frontend server on http://localhost:8080..."
 echo "Press Ctrl+C to stop both servers"
-python -m http.server 8080 &
+python -m http.server 8082 &
 HTTP_PID=$!
 
 # Function to cleanup on exit

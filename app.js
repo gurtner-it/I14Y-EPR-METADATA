@@ -179,6 +179,77 @@ ${parsed.fullError}`;
     return `❌ ❌ ❌ API ERROR ❌ ❌ ❌\n\n${errorText}`;
 }
 
+function generateBatchSummary(logText, method) {
+    // Count successes and errors
+    const successMatches = logText.match(/completed successfully/g) || [];
+    const successCount = successMatches.length;
+    
+    // Count errors by looking for "START ERROR" blocks
+    const errorMatches = logText.match(/START ERROR/g) || [];
+    const errorCount = errorMatches.length;
+    
+    // Also check for the final summary line from Python scripts
+    const batchSummaryMatch = logText.match(/Batch .+ completed: (\d+) succeeded, (\d+) failed/);
+    
+    let finalSuccessCount = successCount;
+    let finalErrorCount = errorCount;
+    
+    if (batchSummaryMatch) {
+        finalSuccessCount = parseInt(batchSummaryMatch[1]);
+        finalErrorCount = parseInt(batchSummaryMatch[2]);
+    }
+    
+    const totalProcessed = finalSuccessCount + finalErrorCount;
+    
+    // Extract error details if any
+    const errorDetails = [];
+    const errorBlocks = logText.match(/START ERROR[\s\S]*?END ERROR/g) || [];
+    
+    errorBlocks.forEach(block => {
+        // Extract the key error message
+        const errorMatch = block.match(/❌\s+(.+?)\s+failed/);
+        const reasonMatch = block.match(/Reason:\s+(.+)/);
+        
+        if (errorMatch || reasonMatch) {
+            const operation = errorMatch ? errorMatch[1] : 'Operation';
+            const reason = reasonMatch ? reasonMatch[1].trim() : 'Unknown error';
+            errorDetails.push(`   • ${operation}: ${reason}`);
+        }
+    });
+    
+    // Determine operation name
+    const operationNames = {
+        '-pmc': 'Post Multiple Concepts',
+        '-pmcl': 'Post Multiple Codelists',
+        '-mspl': 'Set Multiple Publication Levels',
+        '-msrs': 'Set Multiple Registration Statuses'
+    };
+    const operationName = operationNames[method] || 'Batch Operation';
+    
+    // Build summary
+    let summary = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 BATCH OPERATION SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📦 Operation: ${operationName}
+📈 Total Processed: ${totalProcessed}
+✅ Successful: ${finalSuccessCount}
+❌ Failed: ${finalErrorCount}
+`;
+
+    if (finalErrorCount === 0) {
+        summary += `\n🎉 All operations completed successfully!\n`;
+    } else {
+        summary += `\n⚠️  ERRORS ENCOUNTERED:\n${errorDetails.join('\n')}\n`;
+        summary += `\n💡 Check the detailed log above for more information.\n`;
+    }
+    
+    summary += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+    
+    return summary;
+}
+
 
 async function handleFileSelect(event) {
     const files = Array.from(event.target.files);
@@ -316,14 +387,14 @@ function getParametersForMethod(method) {
             { name: 'filePath', label: 'JSON File Path', type: 'file', required: true, accept: '.json' }
         ],
         '-pmc': [
-            { name: 'directoryPath', label: 'Directory Path', type: 'text', required: true, placeholder: 'Path to directory', value: 'AD_VS/Transformed' }
+            { name: 'directoryPath', label: 'Directory Path', type: 'text', required: true, placeholder: 'Path to directory', value: 'AD_VS/Transformed/Concepts' }
         ],
         '-pcl': [
             { name: 'filePath', label: 'JSON File Path', type: 'file', required: true, accept: '.json' },
             { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' }
         ],
         '-pmcl': [
-            { name: 'directoryPath', label: 'Directory Path', type: 'text', required: true, placeholder: 'Path to directory', value: 'AD_VS/Transformed' }
+            { name: 'directoryPath', label: 'Directory Path', type: 'text', required: true, placeholder: 'Path to directory', value: 'AD_VS/Transformed/Codelists' }
         ],
         '-gce': [
             { name: 'conceptId', label: 'Concept ID', type: 'text', required: true, placeholder: 'Concept id: 028c635d-970d-4fa6-b234-aa627ff8aaaf' },
@@ -385,6 +456,27 @@ function getParametersForMethod(method) {
                 { value: 'PreferredStandard', label: 'PreferredStandard' },
                 { value: 'Superseded', label: 'Superseded' },
             ]},
+        ],
+        '-mspl': [
+            { name: 'directoryPath', label: 'Directory Path (Codelist JSON files)', type: 'text', required: true, placeholder: 'Path to directory with concept files', value: 'AD_VS/Transformed/Codelists'},
+            { name: 'publicationLevel', label: 'Publication Level', type: 'select', required: true, options: [
+                { value: 'Internal', label: 'Internal' },
+                { value: 'Public', label: 'Public' },
+            ]}
+        ],
+        '-msrs': [
+            { name: 'directoryPath', label: 'Directory Path (Codelist JSON files)', type: 'text', required: true, placeholder: 'Path to directory with concept files', value: 'AD_VS/Transformed/Codelists' },
+            { name: 'registrationStatus', label: 'Registration Status', type: 'select', required: true, options: [
+                { value: 'Recorded', label: 'Recorded (normally used)' },
+                { value: 'Retired', label: 'Retired' },
+                { value: '', label: '--- Not relevant:' },
+                { value: 'Standard', label: 'Standard (e.g. eCH or a defined standard) (CAVE: Can only be set by I14Y support)' },
+                { value: 'Incomplete', label: 'Incomplete' },
+                { value: 'Candidate', label: 'Candidate' },
+                { value: 'Qualified', label: 'Qualified' },
+                { value: 'PreferredStandard', label: 'PreferredStandard' },
+                { value: 'Superseded', label: 'Superseded' },
+            ]}
         ],
         '-ucm':  [
             { name: 'fakeFile', label: 'File', type: 'text', required: true, placeholder: 'Stored to codelist_mapping.json', disabled: true }
@@ -486,10 +578,6 @@ document.getElementById('transformForm').addEventListener('submit', async functi
 ✔️  Input files processed: ${result.input_files.length}
    ${result.input_files.map(f => `   • ${f}`).join('\n')}
 
-✔️  Concept files created: ${conceptFiles}
-✔️  Codelist files created: ${codelistFiles}
-✔️  Total output files: ${result.output_files.length}
-
 📂 Output location: ${result.output_folder}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -570,7 +658,11 @@ document.getElementById('apiForm').addEventListener('submit', async function(e) 
             // Extract token and populate token field
             extractAndDisplayToken(result.stdout);
             
-            const output = `
+            // Check if this is a batch operation
+            const batchMethods = ['-pmc', '-pmcl', '-mspl', '-msrs'];
+            const isBatchOperation = batchMethods.includes(data.apiMethod);
+            
+            let output = `
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 OPERATION DETAILS
@@ -584,6 +676,13 @@ ${Object.entries(data).filter(([key]) => key !== 'apiMethod').map(([key, value])
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${result.stdout}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+            // Add batch operation summary
+            if (isBatchOperation) {
+                const summary = generateBatchSummary(result.stdout, data.apiMethod);
+                output += `\n${summary}`;
+            }
+            
             showOutput(output);
         } else {
             // Format API errors to highlight the most important information
