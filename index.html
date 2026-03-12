@@ -20,6 +20,7 @@
 
         <div class="main-content">
            <div class="tabs">
+                <button class="tab" data-tab="download-xml" onclick="switchTab('download-xml')">Get XML from Artdecor</button>
                 <button class="tab active" data-tab="transform" onclick="switchTab('transform')">Transform Files</button>
                 <button class="tab" data-tab="api" onclick="switchTab('api')">API Operations</button>
                 <button class="tab" data-tab="short-readme" onclick="switchTab('short-readme')">Short readme</button>
@@ -123,6 +124,31 @@
 
             <div id="api_errors" class="tab-content">
                 <button type="submit" class="btn" onclick="emptyApiErrors()">Empty log</button>
+            </div>
+
+            <div id="download-xml" class="tab-content">
+                <div class="info-box">
+                    <h3>Download XML from Artdecor (from YAML)</h3>
+                    <p>Upload a YAML/YML/TXT package (like the SwissEprValueSetPackage file) and the system will download all value sets as XML files into <strong>AD_VS/XML</strong>.</p>
+                </div>
+
+                <form id="downloadForm">
+                    <div class="form-group">
+                        <label for="yamlFile">YAML Source File *</label>
+                        <div class="file-upload">
+                            <input type="file" id="yamlFile" name="yamlFile" accept=".yaml,.yml,.txt" onchange="onYamlSelected(event)">
+                            <label for="yamlFile" class="file-upload-label">📁 Choose YAML/TXT file</label>
+                        </div>
+                        <div id="yamlFile-selected" class="selected-file" style="margin-top:8px;color:#666;font-size:14px;"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="useDefault">Or use default YAML in workspace</label>
+                        <input type="checkbox" id="useDefault" name="useDefault" value="true">
+                    </div>
+
+                    <button type="submit" class="btn">Download XML Files</button>
+                </form>
             </div>
 
             <!-- Short GUI Readme -->

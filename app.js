@@ -758,3 +758,48 @@ ${result.stdout}
 
 // Set default date to today
 document.getElementById('dateValidFrom').valueAsDate = new Date();
+
+// ------- Artdecor YAML -> Download XML handlers -------
+function onYamlSelected(event) {
+    const file = event.target.files[0];
+    const display = document.getElementById('yamlFile-selected');
+    if (!file) { display.textContent = ''; return; }
+    display.innerHTML = `📄 <strong>Selected:</strong> ${file.name}`;
+}
+
+document.getElementById('downloadForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const useDefault = document.getElementById('useDefault')?.checked;
+    const fileInput = document.getElementById('yamlFile');
+
+    if (!useDefault && (!fileInput || fileInput.files.length === 0)) {
+        showOutput('Please select a YAML/TXT file or check "use default".', true);
+        return;
+    }
+
+    showOutput('🔄 Starting download of XML files from Artdecor...');
+
+    try {
+        const formData = new FormData();
+        formData.append('useDefault', useDefault ? 'true' : 'false');
+        if (fileInput && fileInput.files.length > 0) {
+            formData.append('yamlFile', fileInput.files[0]);
+        }
+
+        const resp = await fetch('http://localhost:5001/api/download-artdecor', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await resp.json();
+
+        if (result.success) {
+            showOutput(`✅ Download completed. Files saved to: ${result.output_dir}\n\nDetailed log:\n${result.stdout}`);
+        } else {
+            showOutput(`❌ Download failed: ${result.error || result.stderr || 'Unknown error'}\n\n${result.stdout || ''}`, true);
+        }
+    } catch (err) {
+        showOutput(`❌ Network error: ${err.message}\nMake sure the Flask backend is running on http://localhost:5001`, true);
+    }
+});

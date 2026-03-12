@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, send_file
 from flask_cors import CORS
 import os
 import sys
@@ -340,6 +340,47 @@ def clear_log():
     with open(log_path, 'w') as f:
         f.write('')
     return 'Log cleared'
+
+
+@app.route('/api/download-artdecor', methods=['POST'])
+def download_artdecor():
+    """Accept a YAML/TXT upload (or use default file) and download XML value sets into AD_VS/XML"""
+    try:
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        os.makedirs(os.path.join(AD_VS_FOLDER, 'XML'), exist_ok=True)
+
+        use_default = request.form.get('useDefault') == 'true'
+        yaml_path = None
+
+        if not use_default:
+            if 'yamlFile' not in request.files:
+                return jsonify({'success': False, 'error': 'No YAML file uploaded and "use default" not checked'}), 400
+            file = request.files['yamlFile']
+            if file.filename == '':
+                return jsonify({'success': False, 'error': 'Empty filename uploaded'}), 400
+            filename = secure_filename(file.filename)
+            yaml_path = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(yaml_path)
+        else:
+            # default file in workspace
+            default_path = os.path.join(os.getcwd(), 'SwissEprValueSetPackage_20240607.txt')
+            if not os.path.exists(default_path):
+                return jsonify({'success': False, 'error': f'Default file not found: {default_path}'}), 400
+            yaml_path = default_path
+
+        output_dir = os.path.join(AD_VS_FOLDER, 'XML')
+
+        # Run downloader script
+        result = run_python_script('artdecor_downloader.py', [yaml_path, output_dir])
+
+        if result['success']:
+            return jsonify({'success': True, 'stdout': result['stdout'], 'stderr': result['stderr'], 'output_dir': output_dir})
+        else:
+            return jsonify({'success': False, 'stdout': result['stdout'], 'stderr': result['stderr'], 'error': 'Downloader script failed'}), 500
+
+    except Exception as e:
+        logger.error(f"Error in download_artdecor: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/get-concept-version', methods=['POST'])
 def get_concept_version():
