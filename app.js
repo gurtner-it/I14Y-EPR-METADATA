@@ -268,15 +268,26 @@ async function fetchCurrentVersion(fileName) {
     const versionStatus = document.getElementById('version-status');
     
     try {
-        // Extract concept name from filename (e.g., "VS_DocumentEntry.classCode_..." -> "DocumentEntry.classCode")
-        const conceptMatch = fileName.match(/VS[_ ](.+?)_/);
-        if (!conceptMatch) {
+        // Robustly extract concept name from filename
+        function extractConceptName(name) {
+            if (!name || typeof name !== 'string') return null;
+            // remove parentheses and timestamp
+            name = name.replace(/\s*\([^)]*\)/, '');
+            // remove extension
+            name = name.replace(/\.(csv|xml|json)$/i, '');
+            // remove leading VS_ or VS 
+            name = name.replace(/^VS[ _]/i, '');
+            // remove trailing underscores
+            name = name.replace(/_+$/,'');
+            return name.trim();
+        }
+
+        const conceptName = extractConceptName(fileName);
+        if (!conceptName) {
             console.warn('Could not extract concept name from filename');
             versionStatus.innerHTML = '⚠️ Could not detect concept name';
             return;
         }
-        
-        const conceptName = conceptMatch[1];
         
         // Show loading spinner
         versionStatus.innerHTML = '🔄 Fetching current version from I14Y API...';
@@ -342,9 +353,16 @@ async function fetchVersionsForFiles(files) {
     // Build list of promises
     const promises = files.map(async (file) => {
         try {
-            // Extract concept name from filename (reuse same logic)
-            const conceptMatch = file.name.match(/VS[_ ](.+?)_/);
-            const conceptName = conceptMatch ? conceptMatch[1] : null;
+            function extractConceptName(name) {
+                if (!name || typeof name !== 'string') return null;
+                name = name.replace(/\s*\([^)]*\)/, '');
+                name = name.replace(/\.(csv|xml|json)$/i, '');
+                name = name.replace(/^VS[ _]/i, '');
+                name = name.replace(/_+$/,'');
+                return name.trim();
+            }
+
+            const conceptName = extractConceptName(file.name);
             if (!conceptName) {
                 return { fileName: file.name, current: '1.0.0' };
             }
