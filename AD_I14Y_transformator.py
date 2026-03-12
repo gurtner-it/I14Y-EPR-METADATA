@@ -108,6 +108,12 @@ class AD_csv_to_i14y_json():
                     if id:
                         concept_instance.set_id(id)
                         print(f"Found concept ID: {id} for OID: {oid}")
+                        # If API returns a version, use it as the current version for this transformer
+                        valueset_version = clean_concept.get('version')
+                        if valueset_version:
+                            new_version = increment_version(valueset_version)
+                            print(f"Found current version from I14Y: {valueset_version} for OID: {oid}; incremented to {new_version}")
+                            self.version = new_version
                     else:
                         print("Concept not found on I14Y, we need to create a new concept!")
                         self.new_concept = True
@@ -205,6 +211,12 @@ class AD_csv_to_i14y_json():
             if id:
                 concept_instance.set_id(id)
                 print(f"Found concept ID: {id} for OID: {oid}")
+                # If API returns a version, store it on the transformer so output uses it
+                valueset_version = clean_concept.get('version')
+                if valueset_version:
+                    new_version = increment_version(valueset_version)
+                    print(f"Found current version from I14Y: {valueset_version} for OID: {oid}; incremented to {new_version}")
+                    self.version = new_version
             else:
                 print("Concept not found on I14Y, we need to create a new concept!")
                 self.new_concept = True
@@ -682,6 +694,31 @@ def process_filename(filename: str) -> str:
     clean_name = re.sub(r'_+$', '', clean_name)
     
     return clean_name.strip()
+
+def increment_version(version_str: str) -> str:
+    """Increment the last numeric component of a version string by 1.
+
+    Examples:
+    - '2.2.2' -> '2.2.3'
+    - '2.2'   -> '2.3'
+    - '2'     -> '3'
+    If no numeric component is found, append '.1'.
+    """
+    parts = version_str.strip().split('.')
+    for i in range(len(parts) - 1, -1, -1):
+        m = re.match(r'^(\d+)(.*)$', parts[i])
+        if m:
+            num = int(m.group(1)) + 1
+            suffix = m.group(2)
+            parts[i] = str(num) + (suffix or '')
+            return '.'.join(parts)
+    # fallback: find any numeric substring
+    m = re.search(r'(\d+)', version_str)
+    if m:
+        start, end = m.span(1)
+        num = int(m.group(1)) + 1
+        return version_str[:start] + str(num) + version_str[end:]
+    return version_str + '.1'
 
 def main():
     # Force all logging to stdout

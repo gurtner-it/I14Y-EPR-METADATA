@@ -414,6 +414,12 @@ Open browser to: `http://localhost:8080` (or check `http://localhost:5001` for b
 - Ensure proper sequence of workflow steps
 
 ## Todo's:
-- Handle versioning in transormation for multiple files
+- Handle versioning in transormation for multiple files 
+   - Implemented, but to be tested in detail
+   - Define testcases
+   - Remove version from
+   - Remove @app.route('/api/get-concept-version', methods=['POST'])
+      - To be discussed
 - Clarify why classcode concept with new version can't be uploaded
-- Show errors more clear & structured
+   - DONE. Error on I14Y side
+- Show errors more clear & structured (tbd if needed)
