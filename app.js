@@ -1,4 +1,5 @@
 let selectedFiles = [];
+let selectedFileVersions = {}; // mapping filename -> incremented version to send with transform
 
 function switchTab(tabName) {
     // Update tab buttons
@@ -258,7 +259,7 @@ async function handleFileSelect(event) {
     
     // Fetch current version from first selected file
     if (files.length > 0) {
-        await fetchCurrentVersion(files[0].name);
+        await fetchVersionsForFiles(files);
     }
 }
 
@@ -289,32 +290,82 @@ async function fetchCurrentVersion(fileName) {
             body: JSON.stringify({ conceptName: conceptName }),
             signal: AbortSignal.timeout(10000)  // 10 second timeout
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const result = await response.json();
-        
-        if (result.success && result.version) {
-            versionInput.value = result.version;
-            versionInput.placeholder = 'e.g., 2.0.3';
-            versionStatus.innerHTML = `✅ Current version in I14Y: <strong>${result.version}</strong> - Please increment before transforming`;
-            console.log(`✅ Fetched version: ${result.version}`);
+
+        // Return the current version or fallback
+        if (result && result.success && result.version) {
+            // If single-file UI elements exist, update them for convenience
+            if (versionInput) versionInput.value = result.version;
+            if (versionStatus) versionStatus.innerHTML = `✅ Current version in I14Y: <strong>${result.version}</strong> - Please increment before transforming`;
+            return result.version;
         } else {
-            // No version found in API - use 1.0.0
-            versionInput.value = '1.0.0';
-            versionInput.placeholder = 'e.g., 1.0.1';
-            versionStatus.innerHTML = 'ℹ️ Concept not found in I14Y. Starting with version <strong>1.0.0</strong>';
-            console.log(`ℹ️ No existing version found for ${conceptName}. Using 1.0.0`);
+            if (versionInput) versionInput.value = '1.0.0';
+            if (versionStatus) versionStatus.innerHTML = 'ℹ️ Concept not found in I14Y. Starting with version <strong>1.0.0</strong>';
+            return '1.0.0';
         }
     } catch (error) {
         // API call failed - use 1.0.0 as fallback
         console.warn('Could not fetch current version (backend may not be running):', error.message);
-        versionInput.value = '1.0.0';
-        versionInput.placeholder = 'e.g., 1.0.1';
-        versionStatus.innerHTML = '⚠️ Could not connect to API. Using default version <strong>1.0.0</strong>';
+        if (versionInput) {
+            versionInput.value = '1.0.0';
+            versionInput.placeholder = 'e.g., 1.0.1';
+        }
+        if (versionStatus) versionStatus.innerHTML = '⚠️ Could not connect to API. Using default version <strong>1.0.0</strong>';
+        return '1.0.0';
     }
+}
+
+// Increment the last numeric segment of a version string. Examples:
+// 2.2.2 -> 2.2.3, 2.1 -> 2.2, 1 -> 2
+function incrementVersion(version) {
+    if (!version || typeof version !== 'string') return '1.0.0';
+    const parts = version.split('.').map(p => parseInt(p, 10));
+    for (let i = 0; i < parts.length; i++) {
+        if (isNaN(parts[i])) parts[i] = 0;
+    }
+    if (parts.length === 0) return '1.0.0';
+    // Increment last segment
+    parts[parts.length - 1] = (parts[parts.length - 1] || 0) + 1;
+    return parts.join('.');
+}
+
+// Fetch versions for multiple files in parallel, increment them and store in selectedFileVersions
+async function fetchVersionsForFiles(files) {
+    const statusElem = document.getElementById('version-status');
+    if (statusElem) statusElem.innerHTML = `🔄 Fetching current versions for ${files.length} file(s)...`;
+
+    // Build list of promises
+    const promises = files.map(async (file) => {
+        try {
+            // Extract concept name from filename (reuse same logic)
+            const conceptMatch = file.name.match(/VS[_ ](.+?)_/);
+            const conceptName = conceptMatch ? conceptMatch[1] : null;
+            if (!conceptName) {
+                return { fileName: file.name, current: '1.0.0' };
+            }
+
+            const current = await fetchCurrentVersion(file.name);
+            return { fileName: file.name, current };
+        } catch (e) {
+            return { fileName: file.name, current: '1.0.0' };
+        }
+    });
+
+    const results = await Promise.all(promises);
+
+    // Store incremented versions in mapping
+    results.forEach(r => {
+        const newVersion = incrementVersion(r.current || '1.0.0');
+        selectedFileVersions[r.fileName] = newVersion;
+    });
+
+    if (statusElem) statusElem.innerHTML = `✅ Fetched and incremented versions for ${files.length} file(s)`;
+    updateFileList();
 }
 
 function updateFileList() {
@@ -325,16 +376,22 @@ function updateFileList() {
         return;
     }
 
-    fileList.innerHTML = selectedFiles.map((file, index) => `
+    fileList.innerHTML = selectedFiles.map((file, index) => {
+        const version = selectedFileVersions[file.name] || '';
+        return `
         <div class="file-item">
-            📄 ${file.name}
+            📄 ${file.name} ${version ? `<span style="color:#666; margin-left:8px; font-size:12px;">(version: ${version})</span>` : ''}
             <span class="remove" onclick="removeFile(${index})">×</span>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 function removeFile(index) {
-    selectedFiles.splice(index, 1);
+    const removed = selectedFiles.splice(index, 1)[0];
+    if (removed && selectedFileVersions[removed.name]) {
+        delete selectedFileVersions[removed.name];
+    }
     updateFileList();
 }
 
@@ -545,15 +602,17 @@ document.getElementById('transformForm').addEventListener('submit', async functi
 
     const formData = new FormData(this);
     
-    // Add files to formData
-    selectedFiles.forEach((file, index) => {
-        formData.append('files', file);
-    });
-
     showOutput('🔄 Processing files... This may take a moment.');
 
     try {
         // REAL API CALL TO FLASK BACKEND
+        // Attach per-file versions (same order as files) so backend can use them
+        selectedFiles.forEach((file) => {
+            formData.append('files', file);
+            const v = selectedFileVersions[file.name] || document.getElementById('version')?.value || '1.0.0';
+            formData.append('versions', v);
+        });
+
         const response = await fetch('http://localhost:5001/api/transform', {
             method: 'POST',
             body: formData
