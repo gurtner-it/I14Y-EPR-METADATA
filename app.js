@@ -380,7 +380,7 @@ function updateFileList() {
         const version = selectedFileVersions[file.name] || '';
         return `
         <div class="file-item">
-            📄 ${file.name} ${version ? `<span style="color:#666; margin-left:8px; font-size:12px;">(version: ${version})</span>` : ''}
+            📄 ${file.name} ${version ? `<span style="color:#666; margin-left:8px; font-size:12px;">(new version: ${version})</span>` : ''}
             <span class="remove" onclick="removeFile(${index})">×</span>
         </div>
     `;

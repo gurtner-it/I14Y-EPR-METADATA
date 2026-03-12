@@ -102,11 +102,11 @@ def transform_files():
         version = request.form.get('version', '1.0.0')  # Get version, default to 1.0.0
         create_new = request.form.get('createNew') == 'true'
         
-        # Validate required fields
-        if not all([responsible_key, deputy_key, date_valid_from, version]):
+        # Validate required fields. Either a default version or per-file versions must be provided.
+        if not all([responsible_key, deputy_key, date_valid_from]) or (not version and not versions_map):
             return jsonify({
                 'success': False,
-                'error': 'Missing required fields: responsible_key, deputy_key, date_valid_from, or version'
+                'error': 'Missing required fields: responsible_key, deputy_key, date_valid_from, and version(s)'
             }), 400
         
         # Handle file uploads
@@ -145,6 +145,14 @@ def transform_files():
                     'error': 'No valid files uploaded (only XML allowed)'
                 }), 400
             
+            # Collect per-file versions if provided (same order as files)
+            versions_list = request.form.getlist('versions') or []
+            # Build a mapping from saved filename -> version (use uploaded_files which contains secure filenames)
+            versions_map = {}
+            for i, fname in enumerate(uploaded_files):
+                if i < len(versions_list) and versions_list[i]:
+                    versions_map[fname] = versions_list[i]
+
             # Prepare arguments for the transformation script
             args = [
                 responsible_key,
@@ -152,9 +160,13 @@ def transform_files():
                 UPLOAD_FOLDER,
                 output_folder,
                 date_valid_from,
-                version  # Add version parameter
+                version  # default version parameter (used as fallback)
             ]
-            
+
+            # Pass versions_map as JSON string as an optional extra argument
+            if versions_map:
+                args.append(json.dumps(versions_map))
+
             if create_new:
                 args.append('-n')
             

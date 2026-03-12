@@ -694,9 +694,10 @@ def main():
     )
 
     if len(sys.argv) < 6:
-        print("Usage: python script_name.py <responsible_key> <deputy_key> <input_folder_path> <output_folder_path> <Date_Valid_From> <Version> [-n]")
+        print("Usage: python script_name.py <responsible_key> <deputy_key> <input_folder_path> <output_folder_path> <Date_Valid_From> <Version> [<VersionsMapJSON>] [-n]")
         print("  <Date_Valid_From>   → date from which the concept is valid. needs to be in 'YYYY-MM-DD' format")
-        print("  <Version>           → version number for the concept (e.g., 2.0.3)")
+        print("  <Version>           → version number for the concept (e.g., 2.0.3). Used as fallback if per-file version not provided.")
+        print("  <VersionsMapJSON>   → optional JSON string mapping uploaded filenames to versions, e.g. '{\"file1.csv\":\"2.2.3\"}'")
         print("  -n                  → create new concept otherwise it will create a new version of existing concept")
         sys.exit(1)
 
@@ -705,8 +706,24 @@ def main():
     input_folder = sys.argv[3]  # Third argument (input folder path)
     output_folder = sys.argv[4]  # Fourth argument (output folder path)
     date_valid_from = sys.argv[5]  # Fifth argument (date from which the concept is valid)
-    version = sys.argv[6]  # Sixth argument (version number)
-    new = len(sys.argv) > 7 and sys.argv[7] == "-n"  # Will be True if -n is present, False otherwise
+    version = sys.argv[6]  # Sixth argument (default/fallback version number)
+
+    # Optional args: a JSON mapping of filenames -> version, and/or the '-n' flag
+    versions_map = {}
+    new = False
+    if len(sys.argv) > 7:
+        for extra in sys.argv[7:]:
+            if extra == '-n':
+                new = True
+            else:
+                # try to parse as JSON mapping
+                try:
+                    parsed = json.loads(extra)
+                    if isinstance(parsed, dict):
+                        versions_map.update(parsed)
+                except Exception:
+                    # ignore non-json extras
+                    pass
 
     os.makedirs(output_folder, exist_ok=True)
     output_folder_concepts = os.path.join(output_folder, "Concepts")
@@ -721,9 +738,12 @@ def main():
         if filename.endswith(('.csv', '.xml')):
             input_file = os.path.join(input_folder, filename)
             concept_name = process_filename(filename)
-            
-            # Create transformer instance with version
-            transformer = AD_csv_to_i14y_json(input_file, "", concept_name, responsible_key, deputy_key, date_valid_from, new, version)
+
+            # Decide version for this file: prefer per-file mapping, otherwise fallback to provided version
+            file_version = versions_map.get(filename, version)
+
+            # Create transformer instance with version (per-file)
+            transformer = AD_csv_to_i14y_json(input_file, "", concept_name, responsible_key, deputy_key, date_valid_from, new, file_version)
             
             # Process the file to get the concept data
             if filename.endswith('.csv'):
