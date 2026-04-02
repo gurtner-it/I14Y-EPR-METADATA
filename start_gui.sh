@@ -2,6 +2,9 @@
 
 # Script to start the EPD Metadata Web GUI
 
+# Frontend port (can be overridden by environment)
+FRONTEND_PORT=${FRONTEND_PORT:-8082}
+
 echo "Starting EPD Metadata Web GUI..."
 
 # Activate virtual environment if it exists
@@ -19,10 +22,24 @@ FLASK_PID=$!
 sleep 2
 
 # Start frontend HTTP server
-echo "Starting frontend server on http://localhost:8080..."
+echo "Starting frontend server on http://localhost:${FRONTEND_PORT}..."
 echo "Press Ctrl+C to stop both servers"
-python -m http.server 8082 &
+python -m http.server ${FRONTEND_PORT} &
 HTTP_PID=$!
+
+# Give the frontend a moment to come up, then open it in the default browser
+sleep 1
+GUI_URL="http://localhost:${FRONTEND_PORT}"
+echo "Opening GUI at $GUI_URL in default browser..."
+if command -v open >/dev/null 2>&1; then
+    open "$GUI_URL"
+elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$GUI_URL"
+elif command -v gnome-open >/dev/null 2>&1; then
+    gnome-open "$GUI_URL"
+else
+    echo "Could not detect a browser opener. Please open $GUI_URL manually."
+fi
 
 # Function to cleanup on exit
 cleanup() {
