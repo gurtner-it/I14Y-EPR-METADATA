@@ -423,3 +423,11 @@ Open browser to: `http://localhost:8080` (or check `http://localhost:5001` for b
 - Clarify why classcode concept with new version can't be uploaded
    - DONE. Error on I14Y side
 - Show errors more clear & structured (tbd if needed)
+- Bug in getting concept version:
+
+INFO:werkzeug:127.0.0.1 - - [02/Apr/2026 07:14:44] "POST /api/execute HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [02/Apr/2026 07:38:30] "OPTIONS /api/get-concept-version HTTP/1.1" 200 -
+INFO:__main__:Fetching version for concept: DocumentEntry.Author.AuthorSpecialty
+INFO:__main__:Executing command: python3 I14Y_API_handling.py -gec temp_concepts.json
+INFO:__main__:Concept DocumentEntry.Author.AuthorSpecialty not found in I14Y
+INFO:werkzeug:127.0.0.1 - - [02/Apr/2026 07:38:31] "POST /api/get-concept-version HTTP/1.1" 200 -
