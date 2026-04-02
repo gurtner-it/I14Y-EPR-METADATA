@@ -812,8 +812,15 @@ document.getElementById('downloadForm')?.addEventListener('submit', async functi
 
         const result = await resp.json();
 
+        const failureLines = (result.failures && result.failures.length > 0)
+            ? `\n\n⚠️ ${result.failures.length} URL(s) failed:\n` + result.failures.map(f => `  • ${f}`).join('\n')
+            : '';
+
         if (result.success) {
             showOutput(`✅ Download completed. Files saved to: ${result.output_dir}\n\nDetailed log:\n${result.stdout}`);
+        } else if (result.output_dir) {
+            // Completed with failures (exit code 5)
+            showOutput(`⚠️ Download finished with errors.${failureLines}\n\nFull log:\n${result.stdout}`, true);
         } else {
             showOutput(`❌ Download failed: ${result.error || result.stderr || 'Unknown error'}\n\n${result.stdout || ''}`, true);
         }

@@ -66,7 +66,7 @@ def sanitize_filename(name):
     return name
 
 
-def create_session(retries=3, backoff_factor=0.5, status_forcelist=(429, 500, 502, 503, 504)):
+def create_session(retries=2, backoff_factor=0.5, status_forcelist=(429, 503, 504)):
     session = requests.Session()
     retry = Retry(
         total=retries,
@@ -86,10 +86,18 @@ def download_url_to_file(session, url, dest_path, timeout=30):
     headers = {'Accept': 'application/xml, text/xml, */*', 'User-Agent': 'EPD_Metadata/1.0'}
     try:
         r = session.get(url, headers=headers, timeout=timeout)
+        if not r.ok:
+            return False, f'HTTP {r.status_code} {r.reason} for URL: {url}'
         r.raise_for_status()
         with open(dest_path, 'wb') as f:
             f.write(r.content)
         return True, None
+    except requests.exceptions.HTTPError as e:
+        return False, f'HTTP error: {e}'
+    except requests.exceptions.ConnectionError as e:
+        return False, f'Connection error: {e}'
+    except requests.exceptions.Timeout:
+        return False, f'Request timed out after {timeout}s: {url}'
     except Exception as e:
         return False, str(e)
 

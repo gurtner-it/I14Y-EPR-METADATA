@@ -373,10 +373,20 @@ def download_artdecor():
         # Run downloader script
         result = run_python_script('artdecor_downloader.py', [yaml_path, output_dir])
 
-        if result['success']:
-            return jsonify({'success': True, 'stdout': result['stdout'], 'stderr': result['stderr'], 'output_dir': output_dir})
+        # Exit code 0 = all OK; 5 = completed with some failures — both are not server errors
+        completed = result['returncode'] in (0, 5)
+        if completed:
+            # Parse failures from stdout for a structured summary
+            failures = [line.strip() for line in result['stdout'].splitlines() if line.strip().startswith('-> FAILED')]
+            return jsonify({
+                'success': result['returncode'] == 0,
+                'stdout': result['stdout'],
+                'stderr': result['stderr'],
+                'failures': failures,
+                'output_dir': output_dir
+            })
         else:
-            return jsonify({'success': False, 'stdout': result['stdout'], 'stderr': result['stderr'], 'error': 'Downloader script failed'}), 500
+            return jsonify({'success': False, 'stdout': result['stdout'], 'stderr': result['stderr'], 'error': 'Downloader script crashed or timed out'}), 500
 
     except Exception as e:
         logger.error(f"Error in download_artdecor: {str(e)}")
